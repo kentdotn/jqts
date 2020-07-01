@@ -1,0 +1,42 @@
+{
+  "name": "jqts",
+  "version": "0.0.1",
+  "description": "A TypeScript implementation of `jq` query language for JSON",
+  "keywords": [
+    "jq",
+    "json",
+    "typescript"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kentdotn/jqts.git"
+  },
+  "author": "Kent.N <kntngt@gmail.com>",
+  "license": "MIT",
+  "private": false,
+  "main": "dist/index.js",
+  "typings": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "dependencies": {},
+  "devDependencies": {
+    "@types/jest": "^26.0.3",
+    "@typescript-eslint/eslint-plugin": "^3.5.0",
+    "@typescript-eslint/parser": "^3.5.0",
+    "eslint": "^7.3.1",
+    "eslint-config-prettier": "^6.11.0",
+    "eslint-plugin-prettier": "^3.1.4",
+    "jest": "^26.1.0",
+    "prettier": "^2.0.5",
+    "ts-jest": "^26.1.1",
+    "typescript": "^3.9.5"
+  },
+  "scripts": {
+    "build": "tsc",
+    "prepublish": "tsc",
+    "lint": "eslint --ext .ts,.js src/",
+    "lint:fix": "eslint --fix --ext .ts,.js src/",
+    "test": "jest"
+  }
+}
