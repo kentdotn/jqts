@@ -4,6 +4,7 @@ import {
     Value,
     ContextWithTarget,
     JsonMap,
+    isJsonMap,
 } from './context';
 
 export class RuntimeError extends Error {}
@@ -67,20 +68,102 @@ function expandCombination<T, U>(
     );
 }
 
+class UnexpectedIdError extends RuntimeError {
+    constructor(id: string) {
+        super(`unexpected identifier: ${id}`);
+    }
+}
+
+function ensureValue(value: Value): JSONValue {
+    if ('error' in value) {
+        throw value.error;
+    }
+    if ('id' in value) {
+        throw new UnexpectedIdError(value.id);
+    }
+    return value.value;
+}
+
+function ensureObjectKey(value: Value): string {
+    if ('error' in value) {
+        throw value.error;
+    }
+    if ('id' in value) {
+        return value.id;
+    }
+    if (typeof value.value === 'string') {
+        return value.value;
+    }
+    throw new RuntimeError(
+        `unexpected non-string value for object key: ${value.value}`
+    );
+}
+
+function ensureObjectKeyOrArrayIndexable(value: Value): string | number {
+    if ('error' in value) {
+        throw value.error;
+    }
+    if ('id' in value) {
+        return value.id;
+    }
+    if (typeof value.value === 'string' || typeof value.value === 'number') {
+        return value.value;
+    }
+    throw new RuntimeError(
+        `unexpected non-string value for object key: ${value.value}`
+    );
+}
+
+function ensureArrayIndexable(value: Value, size: number): number {
+    if ('error' in value) {
+        throw value.error;
+    }
+    if ('id' in value) {
+        throw new RuntimeError(
+            `unexpected identifier for array index: ${value.id}`
+        );
+    }
+    if (typeof value.value === 'number') {
+        return value.value < 0 ? size + value.value : value.value;
+    }
+    throw new RuntimeError(
+        `unexpected non-string value for array index: ${value.value}`
+    );
+}
+
+function ensureSlicable(value: Value): string | Array<JSONValue> {
+    if ('error' in value) {
+        throw value.error;
+    }
+
+    if ('value' in value) {
+        if (typeof value.value === 'string' || Array.isArray(value.value))
+            return value.value;
+
+        throw new RuntimeError(
+            `cannot make slice from non-array value: ${value.value}`
+        );
+    }
+
+    throw new RuntimeError(`cannot make slice from identifier: ${value.id}`);
+}
+
+function flatten<T>(xs: T[][]): T[] {
+    return xs.reduce((acc, x) => [...acc, ...x], []);
+}
+
 export class ArrayEvaluator implements Evaluator<Context> {
     constructor(private elements: Evaluator<Context>[]) {}
 
     evaluate(ctx: Context) {
-        const xs = this.elements.map(x => x.evaluate(ctx).values);
-        return new Context({
-            value: flatten(xs).map(v => {
-                if ('id' in v)
-                    throw new RuntimeError(
-                        `unexpected identifier in array: ${v.id}`
-                    );
-                return v.value;
-            }),
-        });
+        try {
+            const xs = this.elements.map(x => x.evaluate(ctx).values);
+            return new Context({
+                value: flatten(xs).map(ensureValue),
+            });
+        } catch (error) {
+            return new Context({ error });
+        }
     }
 
     dump() {
@@ -90,8 +173,8 @@ export class ArrayEvaluator implements Evaluator<Context> {
     }
 }
 
-function flatten<T>(xs: T[][]): T[] {
-    return xs.reduce((acc, x) => [...acc, ...x], []);
+function mergeObjects(...xs: Record<string, JSONValue>[]) {
+    return xs.reduce((acc, x) => ({ ...acc, ...x }), {});
 }
 
 export class ObjectFieldEvaluator implements Evaluator<Context, JsonMap[]> {
@@ -101,27 +184,20 @@ export class ObjectFieldEvaluator implements Evaluator<Context, JsonMap[]> {
     ) {}
 
     evaluate(ctx: Context) {
-        const keys = this.key.evaluate(ctx).values;
+        const keys = this.key.evaluate(ctx).values.map(ensureObjectKey);
         const values = flatten(
             ctx.values.map(v => this.value.evaluate(ctx.withTarget(v)).values)
-        );
+        ).map(ensureValue);
 
-        const xs: JsonMap[] = [];
-        keys.forEach(k => {
-            const key = 'id' in k ? k.id : k.value;
-            if (typeof key !== 'string') {
-                throw new RuntimeError(
-                    `cannot use ${typeof key} as an object key`
-                );
+        const pairs = expandCombination(
+            [keys, values],
+            [] as (string | JSONValue)[],
+            (prev, xs) => {
+                return xs.map(x => [...prev, x]);
             }
-            values.forEach(v => {
-                if ('id' in v)
-                    throw new RuntimeError(`unresolved identifier: ${v.id}`);
-                xs.push({ [key]: v.value });
-            });
-        }, []);
+        ) as [string, JSONValue][];
 
-        return xs;
+        return pairs.map(([key, value]) => ({ [key]: value }));
     }
 
     dump() {
@@ -136,15 +212,19 @@ export class ObjectEvaluator implements Evaluator<Context> {
     constructor(private fields: ObjectFieldEvaluator[]) {}
 
     evaluate(ctx: Context) {
-        const fields = this.fields.map(f => f.evaluate(ctx));
+        try {
+            const fields = this.fields.map(f => f.evaluate(ctx));
 
-        const xs = expandCombination(fields, {} as JsonMap, (prev, vs) => {
-            return vs.map(v => {
-                return { ...prev, ...v };
+            const xs = expandCombination(fields, {} as JsonMap, (prev, vs) => {
+                return vs.map(v => {
+                    return { ...prev, ...v };
+                });
             });
-        });
 
-        return new Context(...xs.map(value => ({ value })));
+            return new Context(...xs.map(value => ({ value })));
+        } catch (error) {
+            return new Context({ error });
+        }
     }
 
     dump() {
@@ -160,12 +240,7 @@ export class KeyEvaluator implements Evaluator<ContextWithTarget, Context> {
     evaluate(ctx: ContextWithTarget): Context {
         const target = ctx.target;
 
-        if ('id' in target)
-            throw new RuntimeError(
-                `cannot index against identifyer: '${target.id}'`
-            );
-
-        const record = target.value;
+        const record = ensureValue(target);
         if (!isJsonMap(record) && !Array.isArray(record)) {
             throw new RuntimeError(
                 `cannot index non-object/non-array value: ${typeof record}`
@@ -173,46 +248,29 @@ export class KeyEvaluator implements Evaluator<ContextWithTarget, Context> {
         }
 
         const keys = this.key.evaluate(ctx).values;
-        return new Context(
-            ...keys.map(key => {
-                if ('id' in key) {
-                    if (!isJsonMap(record)) {
-                        throw new RuntimeError(
-                            `cannot index non-object value with string: ${typeof record}`
-                        );
-                    }
-                    return { value: record[key.id] ?? null };
-                } else {
-                    const index = key.value;
-                    if (isJsonMap(record)) {
-                        if (
-                            typeof index !== 'number' &&
-                            typeof index !== 'string'
-                        ) {
-                            throw new RuntimeError(
-                                `cannot index with '${typeof key.value}'`
-                            );
-                        }
-
-                        return { value: record[index] ?? null };
-                    } else {
-                        if (typeof index !== 'number') {
-                            throw new RuntimeError(
-                                `cannot index with '${typeof key.value}'`
-                            );
-                        }
-
-                        const value =
-                            index >= 0
-                                ? record[index]
-                                : record[record.length + index];
-                        return {
-                            value: value ?? null,
-                        };
-                    }
+        const output = keys.map(key => {
+            const index = ensureObjectKeyOrArrayIndexable(key);
+            if (typeof index === 'string') {
+                if (!isJsonMap(record)) {
+                    throw new RuntimeError(
+                        `cannot index non-object value with string: ${typeof record}`
+                    );
                 }
-            })
-        );
+                return { value: record[index] ?? null };
+            } else {
+                if (!Array.isArray(record)) {
+                    throw new RuntimeError(
+                        `cannot index non-array value with number: ${typeof record}`
+                    );
+                }
+                const value =
+                    index >= 0 ? record[index] : record[record.length + index];
+                return {
+                    value: value ?? null,
+                };
+            }
+        });
+        return new Context(...output);
     }
 
     dump() {
@@ -227,82 +285,30 @@ export class SliceEvaluator implements Evaluator<ContextWithTarget, Context> {
     ) {}
 
     evaluate(ctx: ContextWithTarget) {
-        const target = ctx.target;
+        const sliceable = ensureSlicable(ctx.target);
 
-        if ('id' in target) {
-            throw new RuntimeError(
-                `cannot make slice from identifier: ${target.id}`
-            );
-        }
-        if (typeof target.value !== 'string' && !Array.isArray(target.value)) {
-            throw new RuntimeError(
-                `cannot make slice from non-array value: ${target}`
-            );
-        }
-        const sliceable = target.value;
+        const start = this.first
+            ?.evaluate(ctx)
+            .values.map(v => ensureArrayIndexable(v, sliceable.length)) ?? [0];
+        const end = this.last
+            ?.evaluate(ctx)
+            .values.map(v => ensureArrayIndexable(v, sliceable.length)) ?? [
+            sliceable.length,
+        ];
 
-        const start = this.first?.evaluate(ctx);
-        const end = this.last?.evaluate(ctx);
-
-        const values: string | JSONValue[] = [];
-        if (start) {
-            start.values.forEach(start => {
-                if ('id' in start)
-                    throw new RuntimeError(
-                        `unexpected non-number range index: ${start}`
-                    );
-                if (typeof start.value !== 'number')
-                    throw new RuntimeError(
-                        `unexpected non-number range index: ${start}`
-                    );
-                const first =
-                    start.value >= 0
-                        ? start.value
-                        : sliceable.length + start.value;
-
-                if (end) {
-                    end.values.forEach(end => {
-                        if ('id' in end)
-                            throw new RuntimeError(
-                                `unexpected non-number range index: ${end}`
-                            );
-                        if (typeof end.value !== 'number')
-                            throw new RuntimeError(
-                                `unexpected non-number range index: ${end}`
-                            );
-                        const last =
-                            end.value >= 0
-                                ? end.value
-                                : sliceable.length + end.value;
-                        values.push(sliceable.slice(first, last));
-                    });
-                } else {
-                    values.push(sliceable.slice(first));
-                }
-            });
-        } else {
-            if (end) {
-                end.values.forEach(end => {
-                    if ('id' in end)
-                        throw new RuntimeError(
-                            `unexpected non-number range index: ${end}`
-                        );
-                    if (typeof end.value !== 'number')
-                        throw new RuntimeError(
-                            `unexpected non-number range index: ${end}`
-                        );
-                    const last =
-                        end.value >= 0
-                            ? end.value
-                            : sliceable.length + end.value;
-                    values.push(sliceable.slice(0, last));
-                });
-            } else {
-                values.push(sliceable);
+        const pairs = expandCombination(
+            [start, end],
+            [] as number[],
+            (prev, xs) => {
+                return xs.map(x => [...prev, x]);
             }
-        }
+        ) as [number, number][];
 
-        return new Context(...values.map(value => ({ value })));
+        return new Context(
+            ...pairs
+                .map(([first, last]) => sliceable.slice(first, last))
+                .map(value => ({ value }))
+        );
     }
 
     dump() {
@@ -322,29 +328,19 @@ export class SliceEvaluator implements Evaluator<ContextWithTarget, Context> {
 
 export class SpreadEvaluator implements Evaluator<ContextWithTarget, Context> {
     evaluate(ctx: ContextWithTarget): Context {
-        const target = ctx.target;
+        const target = ensureValue(ctx.target);
 
-        if ('id' in target)
-            throw new RuntimeError(`cannot iterate over '${target.id}'`);
-
-        if (typeof target.value !== 'object') {
-            throw new RuntimeError(
-                `cannot iterate over non-object value: ${typeof target.value}`
-            );
-        }
-
-        if (target.value === null) {
-            throw new RuntimeError(`cannot iterate over null`);
-        }
-
-        if (Array.isArray(target.value)) {
-            return new Context(...target.value.map(v => ({ value: v })));
-        } else {
-            const record = target.value as Record<string | number, JSONValue>;
+        if (isJsonMap(target)) {
             return new Context(
-                ...Object.keys(record)
-                    .map(k => record[k])
+                ...Object.keys(target)
+                    .map(k => target[k])
                     .map(v => ({ value: v }))
+            );
+        } else if (Array.isArray(target)) {
+            return new Context(...target.map(v => ({ value: v })));
+        } else {
+            throw new RuntimeError(
+                `cannot iterate over non-object/non-array value: ${target}`
             );
         }
     }
@@ -357,46 +353,29 @@ export class SpreadEvaluator implements Evaluator<ContextWithTarget, Context> {
 export class IndexedEvaluator implements Evaluator<Context> {
     constructor(
         public target: Evaluator<Context>,
-        public indexer: Evaluator<Context>,
-        public isOptional: boolean
+        public indexer: Evaluator<Context>
     ) {}
 
     evaluate(ctx: Context): Context {
-        const targets = this.target.evaluate(ctx).values;
-        return new Context(
-            ...targets.reduce((acc, target) => {
-                let values: Value[];
-                try {
-                    values = this.indexer.evaluate(
-                        new ContextWithTarget(target, ...ctx.values)
-                    ).values;
-                } catch {
-                    values = [];
-                }
-                return [...acc, ...values];
-            }, [] as Value[])
-        );
+        try {
+            const targets = this.target.evaluate(ctx).values;
+
+            const results = targets.map(target => {
+                return this.indexer.evaluate(ctx.withTarget(target));
+            });
+
+            return new Context(...flatten(results.map(c => c.values)));
+        } catch (error) {
+            return new Context({ error });
+        }
     }
 
     dump() {
         return {
             indexing: this.target.dump(),
             indexer: this.indexer.dump(),
-            isOptional: this.isOptional,
         };
     }
-}
-
-function isJsonMap(x: JSONValue): x is Record<string, JSONValue> {
-    if (x === null) return false;
-    if (
-        typeof x === 'number' ||
-        typeof x === 'string' ||
-        typeof x === 'boolean'
-    )
-        return false;
-    if (Array.isArray(x)) return false;
-    return true;
 }
 
 function mergeObject(
@@ -405,7 +384,7 @@ function mergeObject(
     overwrite: boolean
 ) {
     if (overwrite) {
-        return { ...lhs, ...rhs };
+        return mergeObjects(lhs, rhs);
     }
 
     const tmp = { ...lhs };
@@ -449,6 +428,9 @@ function evaluateBinaryOperator(op: string, lhs: JSONValue, rhs: JSONValue) {
 
         case '/':
             if (typeof lhs == 'number' && typeof rhs == 'number') {
+                if (rhs === 0) {
+                    throw new RuntimeError(`divison by zero`);
+                }
                 return lhs / rhs;
             } else if (typeof lhs == 'string' && typeof rhs == 'string') {
                 return lhs.split(rhs);
@@ -526,30 +508,26 @@ export class BinaryOperatorEvaluator implements Evaluator<Context> {
     ) {}
 
     evaluate(ctx: Context) {
-        const lhs = this.lhs.evaluate(ctx).values.map(v => {
-            if ('id' in v)
-                throw new RuntimeError(
-                    `cannot apply binary operator ${this.op} on identifier '${v.id}'`
-                );
-            return v.value;
-        });
-        const rhs = this.rhs.evaluate(ctx).values.map(v => {
-            if ('id' in v)
-                throw new RuntimeError(
-                    `cannot apply binary operator ${this.op} on identifier '${v.id}'`
-                );
-            return v.value;
-        });
+        const lhs = this.lhs.evaluate(ctx).values.map(ensureValue);
+        const rhs = this.rhs.evaluate(ctx).values.map(ensureValue);
+
+        const pairs = expandCombination(
+            [lhs, rhs],
+            [] as JSONValue[],
+            (prev, xs) => {
+                return xs.map(x => [...prev, x]);
+            }
+        );
 
         return new Context(
-            ...lhs
-                .reduce((acc: JSONValue[], l) => {
-                    return [
-                        ...acc,
-                        ...rhs.map(r => evaluateBinaryOperator(this.op, l, r)),
-                    ];
-                }, [])
-                .map(value => ({ value }))
+            ...pairs.map(([lhs, rhs]) => {
+                try {
+                    const value = evaluateBinaryOperator(this.op, lhs, rhs);
+                    return { value };
+                } catch (error) {
+                    return { error };
+                }
+            })
         );
     }
 
@@ -591,11 +569,27 @@ export class PipedEvaluator implements Evaluator<Context> {
     }
 }
 
+export class TryCatchEvaluator implements Evaluator<Context> {
+    constructor(private evaluator: Evaluator<Context>) {}
+
+    evaluate(ctx: Context) {
+        return new Context(
+            ...this.evaluator.evaluate(ctx).values.filter(v => !('error' in v))
+        );
+    }
+
+    dump() {
+        return { trycatch: this.evaluator };
+    }
+}
+
 export function evaluate(evaluator: Evaluator<Context>, json: JSONValue) {
     const result = evaluator.evaluate(new Context({ value: json }));
     return result.values.map(v => {
         if ('id' in v) {
             return v;
+        } else if ('error' in v) {
+            throw v.error;
         } else {
             return v.value;
         }

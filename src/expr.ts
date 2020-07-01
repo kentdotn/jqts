@@ -190,3 +190,13 @@ export class FilteredExpr implements Expr {
         };
     }
 }
+
+export class OptionalExpr implements Expr {
+    constructor(public expr: Expr) {}
+
+    dump() {
+        {
+            optional: this.expr.dump();
+        }
+    }
+}

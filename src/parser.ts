@@ -20,6 +20,7 @@ import {
     ParallelExpr,
     isIdentityExpr,
     LiteralExpr,
+    OptionalExpr,
 } from './expr';
 
 class ParseError extends Error {}
@@ -353,17 +354,21 @@ function parseIndexedExpr(scanner: Scanner): Expr | null {
         if (isIdentityExpr(lhs)) {
             const indexer = parseDotIndexer(scanner);
             if (indexer) {
-                const isOptional = scanner.scan('?') != null;
-                lhs = new IndexedExpr(lhs, indexer, isOptional);
+                lhs = new IndexedExpr(lhs, indexer, false);
             }
+        }
+        if (scanner.scan('?')) {
+            lhs = new OptionalExpr(lhs);
         }
 
         while (scanner.target.length > 0) {
             const indexer = parseIndexer(scanner);
             if (!indexer) break;
 
-            const isOptional = scanner.scan('?') != null;
-            lhs = new IndexedExpr(lhs, indexer, isOptional);
+            lhs = new IndexedExpr(lhs, indexer, false);
+            if (scanner.scan('?')) {
+                lhs = new OptionalExpr(lhs);
+            }
         }
 
         return lhs;

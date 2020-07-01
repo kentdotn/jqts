@@ -15,6 +15,7 @@ import {
     IdentityEvaluator,
     IdEvaluator,
     PrimitiveEvaluator,
+    TryCatchEvaluator,
 } from './eval';
 import {
     Expr,
@@ -32,6 +33,7 @@ import {
     StringLietralExpr,
     NumberLietralExpr,
     LiteralExpr,
+    OptionalExpr,
 } from './expr';
 import { Context } from './context';
 
@@ -74,8 +76,7 @@ function optimizeIndexedExpr(expr: IndexedExpr) {
     if (expr.indexer instanceof SpreadIndexer) {
         return new IndexedEvaluator(
             optimizeExpr(expr.expr),
-            new SpreadEvaluator(),
-            expr.isOptional
+            new SpreadEvaluator()
         );
     }
 
@@ -86,16 +87,14 @@ function optimizeIndexedExpr(expr: IndexedExpr) {
         const last = expr.indexer.last ? optimizeExpr(expr.indexer.last) : null;
         return new IndexedEvaluator(
             optimizeExpr(expr.expr),
-            new SliceEvaluator(first, last),
-            expr.isOptional
+            new SliceEvaluator(first, last)
         );
     }
 
     if (expr.indexer instanceof KeyIndexer) {
         return new IndexedEvaluator(
             optimizeExpr(expr.expr),
-            new KeyEvaluator(optimizeExpr(expr.indexer.key)),
-            expr.isOptional
+            new KeyEvaluator(optimizeExpr(expr.indexer.key))
         );
     }
 
@@ -111,11 +110,23 @@ function optimizeBinaryOperatorExpr(expr: BinaryOperatorExpr) {
 }
 
 function optimizeParallelExpr(expr: ParallelExpr) {
+    if (expr.exprs.length === 1) {
+        return optimizeExpr(expr.exprs[0]);
+    }
+
     return new ParallelEvaluator(expr.exprs.map(optimizeExpr));
 }
 
 function optimizeFilteredExpr(expr: FilteredExpr) {
+    if (expr.exprs.length === 1) {
+        return optimizeExpr(expr.exprs[0]);
+    }
+
     return new PipedEvaluator(expr.exprs.map(optimizeExpr));
+}
+
+function optimizeOptionalExpr(expr: OptionalExpr) {
+    return new TryCatchEvaluator(optimizeExpr(expr.expr));
 }
 
 function optimizeExpr(expr: Expr): Evaluator<Context> {
@@ -157,6 +168,10 @@ function optimizeExpr(expr: Expr): Evaluator<Context> {
         expr instanceof NumberLietralExpr
     ) {
         return optimizePrimitiveExpr(expr);
+    }
+
+    if (expr instanceof OptionalExpr) {
+        return optimizeOptionalExpr(expr);
     }
 
     throw new RuntimeError(`unsupported expression: ${expr}`);

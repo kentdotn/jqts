@@ -257,7 +257,7 @@ test('Multiplication, division, modulo', () => {
     ]);
 });
 
-test.skip('Multiplication, division, modulo', () => {
+test('Multiplication, division, modulo', () => {
     expect(JQ.compile('.[] | (1 / .)?').evaluate([1, 0, -1])).toStrictEqual([
         1,
         -1,
