@@ -16,6 +16,7 @@ import {
     IdEvaluator,
     PrimitiveEvaluator,
     TryCatchEvaluator,
+    FunctionCallEvaluator,
 } from './eval';
 import {
     Expr,
@@ -34,6 +35,7 @@ import {
     NumberLietralExpr,
     LiteralExpr,
     OptionalExpr,
+    FunctionCallExpr,
 } from './expr';
 import { Context } from './context';
 
@@ -101,6 +103,13 @@ function optimizeIndexedExpr(expr: IndexedExpr) {
     throw new RuntimeError(`unimplemented indexer: ${expr}`);
 }
 
+function optimizeFunctaionCallExpr(expr: FunctionCallExpr) {
+    return new FunctionCallEvaluator(
+        expr.funcname,
+        expr.args.map(optimizeExpr)
+    );
+}
+
 function optimizeBinaryOperatorExpr(expr: BinaryOperatorExpr) {
     return new BinaryOperatorEvaluator(
         expr.op,
@@ -146,6 +155,10 @@ function optimizeExpr(expr: Expr): Evaluator<Context> {
         return optimizeIndexedExpr(expr);
     }
 
+    if (expr instanceof FunctionCallExpr) {
+        return optimizeFunctaionCallExpr(expr);
+    }
+
     if (expr instanceof ObjectExpr) {
         return optimizeObjectExpr(expr);
     }
@@ -174,7 +187,7 @@ function optimizeExpr(expr: Expr): Evaluator<Context> {
         return optimizeOptionalExpr(expr);
     }
 
-    throw new RuntimeError(`unsupported expression: ${expr}`);
+    throw new RuntimeError(`unsupported expression: ${expr.dump()}`);
 }
 
 export function optimize(stmts: Statements): Evaluator<Context> {

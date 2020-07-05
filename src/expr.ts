@@ -30,6 +30,14 @@ export class StringLietralExpr implements Expr {
     }
 }
 
+export class FunctionCallExpr implements Expr {
+    constructor(public funcname: string, public args: Expr[]) {}
+
+    dump() {
+        return { call: { [this.funcname]: this.args } };
+    }
+}
+
 export class IdExpr implements Expr {
     constructor(public value: string) {}
 
@@ -96,7 +104,7 @@ export class ObjectExpr implements Expr {
 }
 
 export interface Indexer {
-    dump(): void;
+    dump(): unknown;
 }
 
 export class RangeIndexer implements Indexer {
@@ -121,7 +129,7 @@ export class KeyIndexer implements Indexer {
     constructor(public key: Expr) {}
 
     dump() {
-        return [this.key?.dump()];
+        return { key: this.key };
     }
 }
 

@@ -84,6 +84,19 @@ function ensureValue(value: Value): JSONValue {
     return value.value;
 }
 
+function ensureNumberValue(value: Value): number {
+    if ('error' in value) {
+        throw value.error;
+    }
+    if ('id' in value) {
+        throw new UnexpectedIdError(value.id);
+    }
+    if (typeof value.value !== 'number') {
+        throw new RuntimeError(`unexpected non-number value: ${value.value}`);
+    }
+    return value.value;
+}
+
 function ensureObjectKey(value: Value): string {
     if ('error' in value) {
         throw value.error;
@@ -187,7 +200,13 @@ export class ObjectFieldEvaluator implements Evaluator<Context, JsonMap[]> {
         const keys = this.key.evaluate(ctx).values.map(ensureObjectKey);
         const values = flatten(
             ctx.values.map(v => this.value.evaluate(ctx.withTarget(v)).values)
-        ).map(ensureValue);
+        ).map(v => {
+            try {
+                return ensureValue(v);
+            } catch {
+                return ensureObjectKey(v);
+            }
+        });
 
         const pairs = expandCombination(
             [keys, values],
@@ -234,47 +253,52 @@ export class ObjectEvaluator implements Evaluator<Context> {
     }
 }
 
+function indexedByKey(key: string | number, value: JSONValue): JSONValue {
+    if (isJsonMap(value)) {
+        if (typeof key === 'string') {
+            return value[key] ?? null;
+        }
+        throw new RuntimeError(
+            `cannot index non-object value with string: ${typeof value}`
+        );
+    }
+
+    if (Array.isArray(value)) {
+        if (typeof key === 'number') {
+            const index = key >= 0 ? key : value.length + key;
+            return value[index] ?? null;
+        }
+        throw new RuntimeError(
+            `cannot index non-array value with number: ${typeof value}`
+        );
+    }
+
+    throw new RuntimeError(
+        `cannot index non-object/non-array value: ${JSON.stringify(value)}`
+    );
+}
+
 export class KeyEvaluator implements Evaluator<ContextWithTarget, Context> {
-    constructor(private key: Evaluator<Context>) {}
+    constructor(public key: Evaluator<Context>) {}
 
     evaluate(ctx: ContextWithTarget): Context {
-        const target = ctx.target;
-
-        const record = ensureValue(target);
-        if (!isJsonMap(record) && !Array.isArray(record)) {
-            throw new RuntimeError(
-                `cannot index non-object/non-array value: ${typeof record}`
-            );
+        try {
+            const indexedValues = this.key
+                .evaluate(ctx)
+                .values.map(key =>
+                    indexedByKey(
+                        ensureObjectKeyOrArrayIndexable(key),
+                        ensureValue(ctx.target)
+                    )
+                );
+            return new Context(...indexedValues.map(value => ({ value })));
+        } catch (error) {
+            return new Context({ error });
         }
-
-        const keys = this.key.evaluate(ctx).values;
-        const output = keys.map(key => {
-            const index = ensureObjectKeyOrArrayIndexable(key);
-            if (typeof index === 'string') {
-                if (!isJsonMap(record)) {
-                    throw new RuntimeError(
-                        `cannot index non-object value with string: ${typeof record}`
-                    );
-                }
-                return { value: record[index] ?? null };
-            } else {
-                if (!Array.isArray(record)) {
-                    throw new RuntimeError(
-                        `cannot index non-array value with number: ${typeof record}`
-                    );
-                }
-                const value =
-                    index >= 0 ? record[index] : record[record.length + index];
-                return {
-                    value: value ?? null,
-                };
-            }
-        });
-        return new Context(...output);
     }
 
     dump() {
-        return [this.key?.dump()];
+        return { key: this.key };
     }
 }
 
@@ -375,6 +399,508 @@ export class IndexedEvaluator implements Evaluator<Context> {
             indexing: this.target.dump(),
             indexer: this.indexer.dump(),
         };
+    }
+}
+
+function length(value: JSONValue) {
+    if (isJsonMap(value)) {
+        return Object.keys(value).length;
+    }
+    if (Array.isArray(value)) {
+        return value.length;
+    }
+    if (typeof value === 'string') {
+        return value.length;
+    }
+    if (value === null) {
+        return 0;
+    }
+    throw new RuntimeError(`cannot get length of ${value}`);
+}
+
+function utf8bytelength(value: JSONValue) {
+    if (typeof value !== 'string') {
+        throw new RuntimeError(`cannot get byte length of ${value}`);
+    }
+
+    return new TextEncoder().encode(value).length;
+}
+
+function keys(value: JSONValue) {
+    if (Array.isArray(value)) {
+        return [...value.keys()];
+    }
+    if (isJsonMap(value)) {
+        return Object.keys(value).sort();
+    }
+    throw new RuntimeError(`cannot get keys from: ${value}`);
+}
+
+function keysUnsorted(value: JSONValue) {
+    if (Array.isArray(value)) {
+        return [...value.keys()];
+    }
+    if (isJsonMap(value)) {
+        return Object.keys(value);
+    }
+    throw new RuntimeError(`cannot get keys from: ${value}`);
+}
+
+function hasKey(input: JSONValue, key: JSONValue) {
+    if (Array.isArray(input)) {
+        if (typeof key !== 'number') {
+            throw new RuntimeError(`cannot call has(key) with number`);
+        }
+        return key < input.length;
+    }
+    if (isJsonMap(input)) {
+        if (typeof key !== 'string') {
+            throw new RuntimeError(
+                `cannot call has(key) with non-string: ${JSON.stringify(key)}`
+            );
+        }
+        return key in input;
+    }
+    throw new RuntimeError(`cannot call has(key) against ${input}`);
+}
+
+function toEntries(input: JSONValue) {
+    if (!isJsonMap(input)) {
+        throw new RuntimeError(`cannot call to_entries against ${input}`);
+    }
+    return Object.keys(input).map(key => {
+        const value = input[key];
+        return { key, value };
+    });
+}
+
+function fromEntries(input: JSONValue) {
+    if (!Array.isArray(input)) {
+        throw new RuntimeError(`cannot call from_entries against ${input}`);
+    }
+    return input.reduce((acc: JsonMap, obj) => {
+        if (
+            isJsonMap(obj) &&
+            'key' in obj &&
+            typeof obj.key === 'string' &&
+            'value' in obj
+        ) {
+            const { key, value } = obj;
+            return { ...acc, [key]: value };
+        }
+        throw new RuntimeError(`cannot call from_entries against ${input}`);
+    }, {});
+}
+
+function isArray(input: JSONValue): input is JSONValue[] {
+    return Array.isArray(input);
+}
+
+function isObject(input: JSONValue): input is JsonMap {
+    return isJsonMap(input);
+}
+
+function isIterable(input: JSONValue): input is JSONValue[] | JsonMap {
+    return isArray(input) || isJsonMap(input);
+}
+
+function join(input: JSONValue) {
+    if (!isArray(input)) {
+        throw new RuntimeError(`cannot add non-array elements: ${input}`);
+    }
+
+    if (input.length === 0) return null;
+
+    return input.reduce((acc: JSONValue | undefined, v) => {
+        if (acc === undefined) {
+            return v;
+        } else {
+            return evaluateBinaryOperator('+', acc, v);
+        }
+    }, undefined) as JSONValue;
+}
+
+function anyOf(input: JSONValue) {
+    if (!isArray(input)) {
+        throw new RuntimeError(
+            `cannot check any against non-array elements: ${input}`
+        );
+    }
+
+    if (input.length === 0) return false;
+
+    return input.some(v => !isFalsy(v));
+}
+
+function allOf(input: JSONValue) {
+    if (!isArray(input)) {
+        throw new RuntimeError(
+            `cannot check all against non-array elements: ${input}`
+        );
+    }
+
+    if (input.length === 0) return true;
+
+    return input.every(v => !isFalsy(v));
+}
+
+function flattenRecursive(input: JSONValue[], depth?: number): JSONValue[] {
+    if (depth === 0) return input;
+
+    return input.reduce(
+        (acc: JSONValue[], v) => [
+            ...acc,
+            ...(isArray(v)
+                ? flattenRecursive(v, depth ? depth - 1 : undefined)
+                : [v]),
+        ],
+        []
+    );
+}
+
+function flattenArray(input: JSONValue, [depth]: JSONValue[]) {
+    if (!isArray(input)) {
+        throw new RuntimeError(`cannot flatten non-array: ${input}`);
+    }
+    if (depth !== undefined && typeof depth !== 'number') {
+        throw new RuntimeError(
+            `cannot call flatten(depth) with non-number depth: ${JSON.stringify(
+                depth
+            )}`
+        );
+    }
+
+    return flattenRecursive(input, depth);
+}
+
+function forEachArgs(args: Context[], fn: (args: Value[]) => Value[]) {
+    const combinations = expandCombination(
+        args.map(arg => arg.values),
+        [] as Value[],
+        (prev, xs) => xs.map(x => [...prev, x])
+    );
+    return (combinations.length === 0 ? [[]] : combinations)
+        .map(args => fn(args))
+        .reduce((acc, x) => [...acc, ...x], [] as Value[]);
+}
+
+function forEachInvocation(
+    ctx: Context,
+    args: Evaluator<Context>[],
+    fn: (input: Value, args: Value[]) => Value[]
+) {
+    return new Context(
+        ...flatten(
+            ctx.values.map(input =>
+                // so... if we know all args are independent on context,
+                // we can evaluate args only once...
+                forEachArgs(
+                    args.map(arg => arg.evaluate(new Context(input))),
+                    args => fn(input, args)
+                )
+            )
+        )
+    );
+}
+
+function invokeFunction(
+    input: Value,
+    args: Value[],
+    fn: (input: JSONValue, args: JSONValue[]) => JSONValue | undefined
+) {
+    try {
+        const value = fn(ensureValue(input), args.map(ensureValue));
+        if (value === undefined) return undefined;
+        return { value };
+    } catch (error) {
+        return { error };
+    }
+}
+
+function standardFunction(
+    fn: (input: JSONValue, args: JSONValue[]) => JSONValue
+) {
+    return (ctx: Context, args: Evaluator<Context>[]) => {
+        return forEachInvocation(ctx, args, (input, args) => {
+            const result = invokeFunction(input, args, fn);
+            return result === undefined ? [] : [result];
+        });
+    };
+}
+
+class StandardFunctionEvaluator implements Evaluator<Context> {
+    constructor(
+        private fun: (input: JSONValue, args: JSONValue[]) => JSONValue,
+        private args: Evaluator<Context>[] = []
+    ) {}
+
+    evaluate(ctx: Context): Context {
+        return forEachInvocation(ctx, this.args, (input, args) => {
+            const result = invokeFunction(input, args, this.fun);
+            return result === undefined ? [] : [result];
+        });
+    }
+
+    dump() {
+        return { stdfunc: this.fun };
+    }
+}
+
+function selectFunction(fn: (input: JSONValue, args: JSONValue[]) => boolean) {
+    return (ctx: Context, args: Evaluator<Context>[]) => {
+        return forEachInvocation(ctx, args, (input, args) => {
+            const result: Value | undefined = invokeFunction(input, args, fn);
+            if (result === undefined) return [];
+            if ('value' in result) {
+                return isFalsy(result.value) ? [] : [input];
+            } else {
+                return [result];
+            }
+        });
+    };
+}
+
+const functions = new Map<
+    string,
+    (ctx: Context, args: Evaluator<Context>[]) => Context
+>([
+    ['length', standardFunction(length)],
+    ['utf8bytelength', standardFunction(utf8bytelength)],
+    ['keys', standardFunction(keys)],
+    ['keys_unsorted', standardFunction(keysUnsorted)],
+    [
+        'has',
+        standardFunction((input, [key]) => {
+            if (key === undefined) {
+                throw new RuntimeError(`missing argment 'key' for has(key)`);
+            }
+            return hasKey(input, key);
+        }),
+    ],
+    [
+        'in',
+        standardFunction((input, [obj]) => {
+            if (obj === undefined) {
+                throw new RuntimeError(`missing argment 'obj' for in(obj)`);
+            }
+            return hasKey(obj, input);
+        }),
+    ],
+    [
+        'map',
+        (ctx, [arg]) => {
+            if (!arg) {
+                return new Context({
+                    error: new RuntimeError(`missing argment for map`),
+                });
+            }
+
+            return new ArrayEvaluator([
+                new PipedEvaluator([
+                    new IndexedEvaluator(
+                        new IdentityEvaluator(),
+                        new SpreadEvaluator()
+                    ),
+                    arg,
+                ]),
+            ]).evaluate(ctx);
+        },
+    ],
+    ['to_entries', standardFunction(toEntries)],
+    ['from_entries', standardFunction(fromEntries)],
+    [
+        'with_entries',
+        (ctx, args) =>
+            new PipedEvaluator([
+                new StandardFunctionEvaluator(toEntries),
+                new IndexedEvaluator(
+                    new IdentityEvaluator(),
+                    new SpreadEvaluator()
+                ),
+                ...args,
+                new StandardFunctionEvaluator(fromEntries),
+            ]).evaluate(ctx),
+    ],
+    [
+        'select',
+        (ctx, args) =>
+            forEachInvocation(ctx, args, (input, [pred]) => {
+                if (!pred) {
+                    return [
+                        {
+                            error: new RuntimeError(`missing argment for map`),
+                        },
+                    ];
+                }
+
+                return isFalsy(ensureValue(pred)) ? [] : [input];
+            }),
+    ],
+    ['arrays', selectFunction(isArray)],
+    ['objects', selectFunction(isObject)],
+    ['iterables', selectFunction(isIterable)],
+    [
+        'booleans',
+        selectFunction(input => {
+            return input === true || input === false;
+        }),
+    ],
+    [
+        'numbers',
+        selectFunction(input => {
+            return typeof input === 'number';
+        }),
+    ],
+    [
+        'normals',
+        selectFunction(input => {
+            return (
+                typeof input === 'number' &&
+                isFinite(input) &&
+                !isNaN(input) &&
+                input != 0.0
+                // TODO: check for subnormals
+            );
+        }),
+    ],
+    [
+        'finites',
+        selectFunction(input => {
+            return typeof input === 'number' && isFinite(input);
+        }),
+    ],
+    [
+        'strings',
+        selectFunction(input => {
+            return typeof input === 'string';
+        }),
+    ],
+    ['nulls', selectFunction(input => input === null)],
+    ['values', selectFunction(input => input !== null)],
+    ['scalars', selectFunction(input => !isIterable(input))],
+    ['empty', selectFunction(() => false)],
+    [
+        'error',
+        standardFunction((_, [message]) => {
+            if (message === undefined) {
+                throw new RuntimeError(`missing argment for map`);
+            }
+            if (typeof message !== 'string') {
+                throw new RuntimeError(
+                    `error message is not a string: ${message}`
+                );
+            }
+            throw new RuntimeError(message);
+        }),
+    ],
+    ['add', standardFunction(join)],
+    ['any', standardFunction(anyOf)],
+    ['all', standardFunction(allOf)],
+    ['flatten', standardFunction(flattenArray)],
+    [
+        'range',
+        (input, args) =>
+            forEachInvocation(input, args, (_, args) => {
+                const [fromOrUpto, uptoOrUndef, byOrUndef] = args.map(
+                    ensureNumberValue
+                );
+                const [from, upto] =
+                    uptoOrUndef === undefined
+                        ? [0, fromOrUpto]
+                        : [fromOrUpto, uptoOrUndef];
+                const by = byOrUndef ?? 1;
+
+                const order = from < upto ? 'asc' : 'desc';
+                if (order === 'asc' && by <= 0) return [];
+                if (order === 'desc' && by >= 0) return [];
+
+                const values: JSONValue[] = [];
+                for (
+                    let i = from;
+                    order === 'asc' ? i < upto : i > upto;
+                    i += by
+                ) {
+                    values.push(i);
+                }
+                return values.map(value => ({ value }));
+            }),
+    ],
+    [
+        'floor',
+        standardFunction(input => {
+            if (typeof input !== 'number') {
+                throw new RuntimeError(
+                    `cannot apply floor against non-number: ${input}`
+                );
+            }
+            return Math.floor(input);
+        }),
+    ],
+    [
+        'sqrt',
+        standardFunction(input => {
+            if (typeof input !== 'number') {
+                throw new RuntimeError(
+                    `cannot apply sqrt against non-number: ${input}`
+                );
+            }
+            return Math.sqrt(input);
+        }),
+    ],
+    [
+        'tonumber',
+        standardFunction(input => {
+            if (typeof input === 'number') {
+                return input;
+            }
+            if (typeof input === 'string') {
+                return parseFloat(input);
+            }
+            throw new RuntimeError(
+                `cannot convert to number from non-number/non-string value: ${input}`
+            );
+        }),
+    ],
+    [
+        'tostring',
+        standardFunction(input => {
+            if (typeof input === 'string') {
+                return input;
+            } else {
+                return JSON.stringify(input);
+            }
+        }),
+    ],
+    [
+        'type',
+        standardFunction(input => {
+            if (input === null) {
+                return 'null';
+            } else if (isArray(input)) {
+                return 'array';
+            } else {
+                return typeof input;
+            }
+        }),
+    ],
+]);
+
+export class FunctionCallEvaluator implements Evaluator<Context> {
+    constructor(private funcname: string, private args: Evaluator<Context>[]) {}
+
+    evaluate(ctx: Context): Context {
+        const func = functions.get(this.funcname);
+        if (func === undefined) {
+            return new Context({
+                error: new RuntimeError(`unknown function '${this.funcname}'`),
+            });
+        }
+
+        return func(ctx, this.args);
+    }
+
+    dump() {
+        return { call: { [this.funcname]: this.args.map(e => e.dump()) } };
     }
 }
 
@@ -493,6 +1019,12 @@ function evaluateBinaryOperator(op: string, lhs: JSONValue, rhs: JSONValue) {
             if (typeof lhs == 'number' && typeof rhs == 'number') {
                 return lhs <= rhs;
             }
+
+        case '!=':
+            return JSON.stringify(lhs) != JSON.stringify(rhs);
+
+        case '==':
+            return JSON.stringify(lhs) == JSON.stringify(rhs);
     }
 
     throw new RuntimeError(
@@ -508,27 +1040,12 @@ export class BinaryOperatorEvaluator implements Evaluator<Context> {
     ) {}
 
     evaluate(ctx: Context) {
-        const lhs = this.lhs.evaluate(ctx).values.map(ensureValue);
-        const rhs = this.rhs.evaluate(ctx).values.map(ensureValue);
-
-        const pairs = expandCombination(
-            [lhs, rhs],
-            [] as JSONValue[],
-            (prev, xs) => {
-                return xs.map(x => [...prev, x]);
-            }
-        );
-
-        return new Context(
-            ...pairs.map(([lhs, rhs]) => {
-                try {
-                    const value = evaluateBinaryOperator(this.op, lhs, rhs);
-                    return { value };
-                } catch (error) {
-                    return { error };
-                }
-            })
-        );
+        return forEachInvocation(ctx, [this.lhs, this.rhs], (input, args) => {
+            const result = invokeFunction(input, args, (_, [lhs, rhs]) =>
+                evaluateBinaryOperator(this.op, lhs, rhs)
+            );
+            return result === undefined ? [] : [result];
+        });
     }
 
     dump() {
@@ -558,10 +1075,7 @@ export class PipedEvaluator implements Evaluator<Context> {
     constructor(private evaluators: Evaluator<Context>[]) {}
 
     evaluate(ctx: Context) {
-        return this.evaluators.reduce(
-            (ctx: Context, x) => x.evaluate(ctx),
-            ctx
-        );
+        return this.evaluators.reduce((ctx, x) => x.evaluate(ctx), ctx);
     }
 
     dump() {

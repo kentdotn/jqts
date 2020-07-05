@@ -1,4 +1,5 @@
 import JQ from '../src';
+import { RuntimeError } from '../src/eval';
 
 test('Identity', () => {
     const json = 'Hello, world!';
@@ -261,5 +262,522 @@ test('Multiplication, division, modulo', () => {
     expect(JQ.compile('.[] | (1 / .)?').evaluate([1, 0, -1])).toStrictEqual([
         1,
         -1,
+    ]);
+});
+
+test('length', () => {
+    expect(
+        JQ.compile('.[] | length').evaluate([[1, 2], 'string', { a: 2 }, null])
+    ).toStrictEqual([2, 6, 1, 0]);
+});
+
+test('utf8bytelength', () => {
+    expect(JQ.compile('utf8bytelength').evaluate('\u03bc')).toStrictEqual([2]);
+});
+
+test('keys, keys_unsorted', () => {
+    expect(
+        JQ.compile('keys').evaluate({ abc: 1, abcd: 2, Foo: 3 })
+    ).toStrictEqual([['Foo', 'abc', 'abcd']]);
+});
+
+test('keys, keys_unsorted', () => {
+    expect(JQ.compile('keys').evaluate([42, 3, 35])).toStrictEqual([[0, 1, 2]]);
+});
+
+test('has(key)', () => {
+    expect(
+        JQ.compile('map(has("foo"))').evaluate([{ foo: 42 }, {}])
+    ).toStrictEqual([[true, false]]);
+});
+
+test('has(key)', () => {
+    expect(
+        JQ.compile('map(has(2))').evaluate([
+            [0, 1],
+            ['a', 'b', 'c'],
+        ])
+    ).toStrictEqual([[false, true]]);
+});
+
+test('in', () => {
+    expect(
+        JQ.compile('.[] | in({"foo": 42})').evaluate(['foo', 'bar'])
+    ).toStrictEqual([true, false]);
+});
+
+test('in', () => {
+    expect(JQ.compile('map(in([0,1]))').evaluate([2, 0])).toStrictEqual([
+        [false, true],
+    ]);
+});
+
+test('map(x), map_values(x)', () => {
+    expect(JQ.compile('[.[]|.+1]').evaluate([1, 2, 3])).toStrictEqual([
+        [2, 3, 4],
+    ]);
+});
+
+test.skip('map(x), map_values(x)', () => {
+    expect(
+        JQ.compile('map_values(.+1)').evaluate({ a: 1, b: 2, c: 3 })
+    ).toStrictEqual([{ a: 2, b: 3, c: 4 }]);
+});
+
+test.skip('path(path_expression)', () => {
+    expect(JQ.compile('path(.a[0].b)').evaluate(null)).toStrictEqual([
+        ['a', 0, 'b'],
+    ]);
+});
+
+test.skip('path(path_expression)', () => {
+    expect(JQ.compile('[path(..)]').evaluate({ a: [{ b: 1 }] })).toStrictEqual([
+        [[], ['a'], ['a', 0], ['a', 0, 'b']],
+    ]);
+});
+
+test.skip('del(path_expression)', () => {
+    expect(
+        JQ.compile('del(.foo)').evaluate({ foo: 42, bar: 9001, baz: 42 })
+    ).toStrictEqual([{ bar: 9001, baz: 42 }]);
+});
+
+test.skip('del(path_expression)', () => {
+    expect(
+        JQ.compile('del(.[1, 2])').evaluate(['foo', 'bar', 'baz'])
+    ).toStrictEqual([['foo']]);
+});
+
+test.skip('getpath(PATHS)', () => {
+    expect(JQ.compile('getpath(["a","b"])').evaluate(null)).toStrictEqual([
+        null,
+    ]);
+});
+
+test.skip('getpath(PATHS)', () => {
+    expect(
+        JQ.compile('[getpath(["a","b"], ["a","c"])]').evaluate({
+            a: { b: 0, c: 1 },
+        })
+    ).toStrictEqual([[0, 1]]);
+});
+
+test.skip('setpath(PATHS; VALUE)', () => {
+    expect(JQ.compile('setpath(["a","b"]; 1)').evaluate(null)).toStrictEqual([
+        { a: { b: 1 } },
+    ]);
+});
+
+test.skip('setpath(PATHS; VALUE)', () => {
+    expect(
+        JQ.compile('setpath(["a","b"]; 1)').evaluate({ a: { b: 0 } })
+    ).toStrictEqual([{ a: { b: 1 } }]);
+});
+
+test.skip('setpath(PATHS; VALUE)', () => {
+    expect(JQ.compile('setpath([0,"a"]; 1)').evaluate(null)).toStrictEqual([
+        { a: 1 },
+    ]);
+});
+
+test.skip('delpaths(PATHS)', () => {
+    expect(
+        JQ.compile('delpaths([["a","b"]])').evaluate({
+            a: { b: 1 },
+            x: { y: 2 },
+        })
+    ).toStrictEqual([{ a: {}, x: { y: 2 } }]);
+});
+
+test('to_entries, from_entries, with_entries', () => {
+    expect(JQ.compile('to_entries').evaluate({ a: 1, b: 2 })).toStrictEqual([
+        [
+            { key: 'a', value: 1 },
+            { key: 'b', value: 2 },
+        ],
+    ]);
+});
+
+test('to_entries, from_entries, with_entries', () => {
+    expect(
+        JQ.compile('from_entries').evaluate([
+            { key: 'a', value: 1 },
+            { key: 'b', value: 2 },
+        ])
+    ).toStrictEqual([{ a: 1, b: 2 }]);
+});
+
+test.skip('to_entries, from_entries, with_entries', () => {
+    expect(
+        JQ.compile('with_entries(.key |= "KEY_" + .)').evaluate({ a: 1, b: 2 })
+    ).toStrictEqual([{ KEY_a: 1, KEY_b: 2 }]);
+});
+
+test('select(boolean_expression)', () => {
+    expect(
+        JQ.compile('map(select(. >= 2))').evaluate([1, 5, 3, 0, 7])
+    ).toStrictEqual([[5, 3, 7]]);
+});
+
+test('select(boolean_expression)', () => {
+    expect(
+        JQ.compile('.[] | select(.id == "second")').evaluate([
+            { id: 'first', val: 1 },
+            { id: 'second', val: 2 },
+        ])
+    ).toStrictEqual([{ id: 'second', val: 2 }]);
+});
+
+test('arrays, objects, iterables, booleans, numbers, normals, finites, strings, nulls, values, scalars', () => {
+    expect(
+        JQ.compile('.[] | arrays').evaluate([
+            [],
+            {},
+            1,
+            'foo',
+            null,
+            true,
+            false,
+        ])
+    ).toStrictEqual([[]]);
+});
+
+test('arrays, objects, iterables, booleans, numbers, normals, finites, strings, nulls, values, scalars', () => {
+    expect(
+        JQ.compile('.[] | objects').evaluate([
+            [],
+            {},
+            1,
+            'foo',
+            null,
+            true,
+            false,
+        ])
+    ).toStrictEqual([{}]);
+});
+
+test('arrays, objects, iterables, booleans, numbers, normals, finites, strings, nulls, values, scalars', () => {
+    expect(
+        JQ.compile('.[] | iterables').evaluate([
+            [],
+            {},
+            1,
+            'foo',
+            null,
+            true,
+            false,
+        ])
+    ).toStrictEqual([[], {}]);
+});
+
+test('arrays, objects, iterables, booleans, numbers, normals, finites, strings, nulls, values, scalars', () => {
+    expect(
+        JQ.compile('.[] | booleans').evaluate([
+            [],
+            {},
+            1,
+            'foo',
+            null,
+            true,
+            false,
+        ])
+    ).toStrictEqual([true, false]);
+});
+
+test('arrays, objects, iterables, booleans, numbers, normals, finites, strings, nulls, values, scalars', () => {
+    expect(
+        JQ.compile('.[] | numbers').evaluate([
+            [],
+            {},
+            1,
+            'foo',
+            null,
+            true,
+            false,
+        ])
+    ).toStrictEqual([1]);
+});
+
+test('arrays, objects, iterables, booleans, numbers, normals, finites, strings, nulls, values, scalars', () => {
+    expect(
+        JQ.compile('.[] | normals').evaluate([
+            [],
+            {},
+            1,
+            'foo',
+            null,
+            true,
+            false,
+            Number.NEGATIVE_INFINITY,
+            Number.POSITIVE_INFINITY,
+            0,
+        ])
+    ).toStrictEqual([1]);
+});
+
+test('arrays, objects, iterables, booleans, numbers, normals, finites, strings, nulls, values, scalars', () => {
+    expect(
+        JQ.compile('.[] | finites').evaluate([
+            [],
+            {},
+            1,
+            'foo',
+            null,
+            true,
+            false,
+            Number.NEGATIVE_INFINITY,
+            Number.POSITIVE_INFINITY,
+            0,
+        ])
+    ).toStrictEqual([1, 0]);
+});
+
+test('arrays, objects, iterables, booleans, numbers, normals, finites, strings, nulls, values, scalars', () => {
+    expect(
+        JQ.compile('.[] | strings').evaluate([
+            [],
+            {},
+            1,
+            'foo',
+            null,
+            true,
+            false,
+        ])
+    ).toStrictEqual(['foo']);
+});
+
+test('arrays, objects, iterables, booleans, numbers, normals, finites, strings, nulls, values, scalars', () => {
+    expect(
+        JQ.compile('.[] | nulls').evaluate([
+            [],
+            {},
+            1,
+            'foo',
+            null,
+            true,
+            false,
+        ])
+    ).toStrictEqual([null]);
+});
+
+test('arrays, objects, iterables, booleans, numbers, normals, finites, strings, nulls, values, scalars', () => {
+    expect(
+        JQ.compile('.[] | values').evaluate([
+            [],
+            {},
+            1,
+            'foo',
+            null,
+            true,
+            false,
+        ])
+    ).toStrictEqual([[], {}, 1, 'foo', true, false]);
+});
+
+test('arrays, objects, iterables, booleans, numbers, normals, finites, strings, nulls, values, scalars', () => {
+    expect(
+        JQ.compile('.[] | scalars').evaluate([
+            [],
+            {},
+            1,
+            'foo',
+            null,
+            true,
+            false,
+        ])
+    ).toStrictEqual([1, 'foo', null, true, false]);
+});
+
+test('empty', () => {
+    expect(JQ.compile('1, empty, 2').evaluate(null)).toStrictEqual([1, 2]);
+});
+
+test('empty', () => {
+    expect(JQ.compile('[1,2,empty,3]').evaluate(null)).toStrictEqual([
+        [1, 2, 3],
+    ]);
+});
+
+test('error(message)', () => {
+    expect(() => JQ.compile('error("TEST")').evaluate(null)).toThrowError(
+        new RuntimeError('TEST')
+    );
+});
+
+test.skip('halt', () => {
+    expect(JQ.compile('halt').evaluate(null)).toStrictEqual([]);
+});
+
+test.skip('halt_error, halt_error(exit_code)', () => {
+    expect(JQ.compile('halt_error').evaluate(null)).toStrictEqual([]);
+});
+
+test.skip('halt_error, halt_error(exit_code)', () => {
+    expect(JQ.compile('halt_error(100)').evaluate(null)).toStrictEqual([]);
+});
+
+test.skip('$__loc__', () => {
+    expect(JQ.compile('$__loc__').evaluate(null)).toStrictEqual([
+        { file: '<top-level>', line: 1 },
+    ]);
+});
+
+test.skip('$__loc__', () => {
+    expect(
+        JQ.compile('try error("($__loc__)") catch .').evaluate(null)
+    ).toStrictEqual(['{"file":"<top-level>","line":1}']);
+});
+
+test.skip('paths, paths(node_filter), leaf_paths', () => {
+    expect(JQ.compile('[paths]').evaluate([1, [[], { a: 2 }]])).toStrictEqual([
+        [[0], [1], [1, 0], [1, 1], [1, 1, 'a']],
+    ]);
+});
+
+test.skip('paths, paths(node_filter), leaf_paths', () => {
+    expect(
+        JQ.compile('[paths(scalars)]').evaluate([1, [[], { a: 2 }]])
+    ).toStrictEqual([[[0], [1, 1, 'a']]]);
+});
+
+test('add', () => {
+    expect(JQ.compile('add').evaluate(['a', 'b', 'c'])).toStrictEqual(['abc']);
+});
+
+test('add', () => {
+    expect(JQ.compile('add').evaluate([1, 2, 3])).toStrictEqual([6]);
+});
+
+test('add', () => {
+    expect(JQ.compile('add').evaluate([])).toStrictEqual([null]);
+});
+
+test('any, any(condition), any(generator; condition)', () => {
+    expect(JQ.compile('any').evaluate([true, false])).toStrictEqual([true]);
+});
+
+test('any, any(condition), any(generator; condition)', () => {
+    expect(JQ.compile('any').evaluate([false, false])).toStrictEqual([false]);
+});
+
+test('any, any(condition), any(generator; condition)', () => {
+    expect(JQ.compile('any').evaluate([])).toStrictEqual([false]);
+});
+
+test.skip('any, any(condition), any(generator; condition)', () => {
+    expect(JQ.compile('any(strings)').evaluate(['a', 1])).toStrictEqual([true]);
+});
+
+test.skip('any, any(condition), any(generator; condition)', () => {
+    expect(JQ.compile('any(["x",1][]; strings)').evaluate(null)).toStrictEqual([
+        true,
+    ]);
+});
+
+test('all, all(condition), all(generator; condition)', () => {
+    expect(JQ.compile('all').evaluate([true, false])).toStrictEqual([false]);
+});
+
+test('all, all(condition), all(generator; condition)', () => {
+    expect(JQ.compile('all').evaluate([true, true])).toStrictEqual([true]);
+});
+
+test('all, all(condition), all(generator; condition)', () => {
+    expect(JQ.compile('all').evaluate([])).toStrictEqual([true]);
+});
+
+test.skip('all, all(condition), all(generator; condition)', () => {
+    expect(JQ.compile('all(strings)').evaluate(['a', 'b'])).toStrictEqual([
+        true,
+    ]);
+});
+
+test.skip('all, all(condition), all(generator; condition)', () => {
+    expect(JQ.compile('all(["x",1][]; strings)').evaluate(null)).toStrictEqual([
+        true,
+    ]);
+});
+
+test('flatten, flatten(depth)', () => {
+    expect(JQ.compile('flatten').evaluate([1, [2], [[3]]])).toStrictEqual([
+        [1, 2, 3],
+    ]);
+});
+
+test('flatten, flatten(depth)', () => {
+    expect(JQ.compile('flatten(1)').evaluate([1, [2], [[3]]])).toStrictEqual([
+        [1, 2, [3]],
+    ]);
+});
+
+test('flatten, flatten(depth)', () => {
+    expect(JQ.compile('flatten').evaluate([[]])).toStrictEqual([[]]);
+});
+
+test('flatten, flatten(depth)', () => {
+    expect(
+        JQ.compile('flatten').evaluate([{ foo: 'bar' }, [{ foo: 'baz' }]])
+    ).toStrictEqual([[{ foo: 'bar' }, { foo: 'baz' }]]);
+});
+
+test('range(upto), range(from;upto) range(from;upto;by)', () => {
+    expect(JQ.compile('range(2;4)').evaluate(null)).toStrictEqual([2, 3]);
+});
+
+test('range(upto), range(from;upto) range(from;upto;by)', () => {
+    expect(JQ.compile('[range(2;4)]').evaluate(null)).toStrictEqual([[2, 3]]);
+});
+
+test('range(upto), range(from;upto) range(from;upto;by)', () => {
+    expect(JQ.compile('range(4)').evaluate(null)).toStrictEqual([0, 1, 2, 3]);
+});
+
+test('range(upto), range(from;upto) range(from;upto;by)', () => {
+    expect(JQ.compile('range(0;10;3)').evaluate(null)).toStrictEqual([
+        0,
+        3,
+        6,
+        9,
+    ]);
+});
+
+test('range(upto), range(from;upto) range(from;upto;by)', () => {
+    expect(JQ.compile('[range(0;10;-1)]').evaluate(null)).toStrictEqual([[]]);
+});
+
+test('range(upto), range(from;upto) range(from;upto;by)', () => {
+    expect(JQ.compile('[range(0;-5;-1)]').evaluate(null)).toStrictEqual([
+        [0, -1, -2, -3, -4],
+    ]);
+});
+
+test('floor', () => {
+    expect(JQ.compile('floor').evaluate(3.14159)).toStrictEqual([3]);
+});
+
+test('sqrt', () => {
+    expect(JQ.compile('sqrt').evaluate(9)).toStrictEqual([3]);
+});
+
+test('tonumber', () => {
+    expect(JQ.compile('.[] | tonumber').evaluate([1, '1'])).toStrictEqual([
+        1,
+        1,
+    ]);
+});
+
+test('tostring', () => {
+    expect(JQ.compile('.[] | tostring').evaluate([1, '1', [1]])).toStrictEqual([
+        '1',
+        '1',
+        '[1]',
+    ]);
+});
+
+test('type', () => {
+    expect(
+        JQ.compile('map(type)').evaluate([0, false, [], {}, null, 'hello'])
+    ).toStrictEqual([
+        ['number', 'boolean', 'array', 'object', 'null', 'string'],
     ]);
 });

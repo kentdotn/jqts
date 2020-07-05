@@ -21,6 +21,7 @@ import {
     isIdentityExpr,
     LiteralExpr,
     OptionalExpr,
+    FunctionCallExpr,
 } from './expr';
 
 class ParseError extends Error {}
@@ -43,7 +44,7 @@ function parseNullLiteral(scanner: Scanner): Expr | null {
     }
 }
 
-function parseNumberLiteral(scanner: Scanner): Expr | null {
+function parseNumberLiteral(scanner: Scanner): NumberLietralExpr | null {
     const result = scanner.scan(/^[\+\-]?\s*[0-9]+/);
     if (result) {
         return new NumberLietralExpr(parseInt(result[0]));
@@ -52,7 +53,7 @@ function parseNumberLiteral(scanner: Scanner): Expr | null {
     }
 }
 
-function parseStringLiteral(scanner: Scanner): Expr | null {
+function parseStringLiteral(scanner: Scanner): StringLietralExpr | null {
     const [quote] = scanner.scan(/^('|")/, false) ?? [];
     if (!quote) return null;
 
@@ -80,7 +81,7 @@ function parseStringLiteral(scanner: Scanner): Expr | null {
     throw new ParseError(`cannot find closing ${quote}`);
 }
 
-function parseIdentifier(scanner: Scanner): Expr | null {
+function parseIdentifier(scanner: Scanner): IdExpr | null {
     const [id] = scanner.scan(/^[a-zA-Z_][a-zA-Z_0-9]*/) ?? [];
     if (id) {
         return new IdExpr(id);
@@ -240,6 +241,26 @@ function parseGroupExpr(scanner: Scanner): Expr | null {
     return expr;
 }
 
+function parseFunctionCall(scanner: Scanner): FunctionCallExpr | null {
+    const id = parseIdentifier(scanner);
+    if (!id) return null;
+
+    const args: Expr[] = [];
+    if (scanner.scan('(')) {
+        for (;;) {
+            const arg = parseExpression(scanner);
+            if (!arg) break;
+            args.push(arg);
+            if (scanner.scan(';')) continue;
+        }
+        if (!scanner.scan(')')) {
+            throw new ParseError(`missing closing paren: ${scanner.target}`);
+        }
+    }
+
+    return new FunctionCallExpr(id.value, args);
+}
+
 function parsePrimitiveExpression(scanner: Scanner): Expr | null {
     const grp = parseGroupExpr(scanner);
     if (grp) {
@@ -266,14 +287,12 @@ function parsePrimitiveExpression(scanner: Scanner): Expr | null {
         return num;
     }
 
-    const nl = parseNullLiteral(scanner);
-    if (nl) {
-        return nl;
-    }
-
-    const id = parseIdentifier(scanner);
-    if (id) {
-        return id;
+    const call = parseFunctionCall(scanner);
+    if (call) {
+        if (call.funcname == 'null') {
+            return new LiteralExpr(null);
+        }
+        return call;
     }
 
     const recursive = parseDoulbeDot(scanner);
@@ -294,23 +313,21 @@ function parseArrayLikeIndexer(scanner: Scanner): Indexer | null {
 
     if (!scanner.scan('[')) return null;
 
-    const startOrKey = parseExpression(scanner);
-    let last: Expr | null = null;
-    let isRange = false;
-
-    if (scanner.scan(':')) {
-        isRange = true;
-        last = parsePrimitiveExpression(scanner);
-    }
+    const start = parseExpression(scanner);
+    const isRange = scanner.scan(':');
+    const last = isRange ? parseExpression(scanner) : null;
 
     if (!scanner.scan(']')) {
         throw new ParseError(`no closing bracket: ${scanner.target}`);
     }
-    return isRange
-        ? new RangeIndexer(startOrKey, last)
-        : startOrKey
-        ? new KeyIndexer(startOrKey)
-        : new SpreadIndexer();
+
+    if (isRange) {
+        return new RangeIndexer(start, last);
+    } else if (start === null) {
+        return new SpreadIndexer();
+    } else {
+        return new KeyIndexer(start);
+    }
 }
 
 function parseDotIndexer(scanner: Scanner): Indexer | null {
