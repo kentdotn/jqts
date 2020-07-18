@@ -31,17 +31,14 @@ import {
     ArrayExpr,
     IdentityExpr,
     IdExpr,
-    StringLietralExpr,
-    NumberLietralExpr,
+    StringLiteralExpr,
     LiteralExpr,
     OptionalExpr,
     FunctionCallExpr,
 } from './expr';
 import { Context } from './context';
 
-function optimizePrimitiveExpr(
-    expr: LiteralExpr | StringLietralExpr | NumberLietralExpr
-) {
+function optimizePrimitiveExpr(expr: LiteralExpr | StringLiteralExpr) {
     return new PrimitiveEvaluator(expr.value);
 }
 
@@ -175,11 +172,7 @@ function optimizeExpr(expr: Expr): Evaluator<Context> {
         return optimizeIdExpr(expr);
     }
 
-    if (
-        expr instanceof LiteralExpr ||
-        expr instanceof StringLietralExpr ||
-        expr instanceof NumberLietralExpr
-    ) {
+    if (expr instanceof LiteralExpr || expr instanceof StringLiteralExpr) {
         return optimizePrimitiveExpr(expr);
     }
 

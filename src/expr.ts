@@ -10,15 +10,7 @@ export class LiteralExpr implements Expr {
     }
 }
 
-export class NumberLietralExpr implements Expr {
-    constructor(public value: number) {}
-
-    dump() {
-        return this.value;
-    }
-}
-
-export class StringLietralExpr implements Expr {
+export class StringLiteralExpr implements Expr {
     constructor(public parts: string[]) {}
 
     get value(): string {

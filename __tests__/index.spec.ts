@@ -159,6 +159,35 @@ test('Parenthesis', () => {
     expect(JQ.compile('(. + 2) * 5').evaluate(1)).toStrictEqual([15]);
 });
 
+test('Types and Values', () => {
+    expect(JQ.compile('123, 4.56, 0.78, 1e2, 2e-3').evaluate(1)).toStrictEqual([
+        123,
+        4.56,
+        0.78,
+        100,
+        0.002,
+    ]);
+});
+
+test('Types and Values', () => {
+    expect(JQ.compile('"abc"').evaluate(1)).toStrictEqual(['abc']);
+});
+
+test('Types and Values', () => {
+    expect(JQ.compile('true, false').evaluate(1)).toStrictEqual([true, false]);
+});
+
+test('Types and Values', () => {
+    expect(JQ.compile('[1, 2], {"xyz": 789}').evaluate(1)).toStrictEqual([
+        [1, 2],
+        { xyz: 789 },
+    ]);
+});
+
+test('Types and Values', () => {
+    expect(JQ.compile('null').evaluate(1)).toStrictEqual([null]);
+});
+
 test('Array construction', () => {
     expect(
         JQ.compile('[.user, .projects[]]').evaluate({

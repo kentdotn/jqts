@@ -2,8 +2,7 @@ import { Scanner } from './scanner';
 import { DefFuncStatement, Statement, ExprStatement, Statements } from './stmt';
 import {
     Expr,
-    NumberLietralExpr,
-    StringLietralExpr,
+    StringLiteralExpr,
     IdExpr,
     RecursiveDescendantExpr,
     IdentityExpr,
@@ -44,16 +43,28 @@ function parseNullLiteral(scanner: Scanner): Expr | null {
     }
 }
 
-function parseNumberLiteral(scanner: Scanner): NumberLietralExpr | null {
-    const result = scanner.scan(/^[\+\-]?\s*[0-9]+/);
+function parseNumberLiteral(scanner: Scanner): LiteralExpr | null {
+    // the following regex comes from https://stackoverflow.com/a/13340826
+    const result = scanner.scan(/^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?/);
     if (result) {
-        return new NumberLietralExpr(parseInt(result[0]));
+        return new LiteralExpr(parseFloat(result[0]));
     } else {
         return null;
     }
 }
 
-function parseStringLiteral(scanner: Scanner): StringLietralExpr | null {
+function parseBooleanLiteral(scanner: Scanner): LiteralExpr | null {
+    if (scanner.scan('true')) {
+        return new LiteralExpr(true);
+    }
+    if (scanner.scan('false')) {
+        return new LiteralExpr(false);
+    }
+
+    return null;
+}
+
+function parseStringLiteral(scanner: Scanner): StringLiteralExpr | null {
     const [quote] = scanner.scan(/^('|")/, false) ?? [];
     if (!quote) return null;
 
@@ -67,7 +78,7 @@ function parseStringLiteral(scanner: Scanner): StringLietralExpr | null {
         }
 
         if (scanner.scan(quote)) {
-            return new StringLietralExpr(parts);
+            return new StringLiteralExpr(parts);
         }
 
         if (scanner.scan('\\', false)) {
@@ -280,6 +291,11 @@ function parsePrimitiveExpression(scanner: Scanner): Expr | null {
     const str = parseStringLiteral(scanner);
     if (str) {
         return str;
+    }
+
+    const bool = parseBooleanLiteral(scanner);
+    if (bool) {
+        return bool;
     }
 
     const num = parseNumberLiteral(scanner);
