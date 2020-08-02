@@ -582,6 +582,70 @@ function flattenArray(input: JSONValue, [depth]: JSONValue[]) {
     return flattenRecursive(input, depth);
 }
 
+function valueCompare(lhs: JSONValue, rhs: JSONValue): -1 | 0 | 1 {
+    if (lhs === null) return rhs === null ? 0 : -1;
+    if (rhs === null) return 1;
+
+    if (lhs === false) return rhs === false ? 0 : -1;
+    if (rhs === false) return 1;
+
+    if (lhs === true) return rhs === true ? 0 : -1;
+    if (rhs === true) return 1;
+
+    if (typeof lhs === 'number') {
+        if (typeof rhs === 'number') {
+            return lhs < rhs ? -1 : lhs > rhs ? 1 : 0;
+        }
+        return -1;
+    }
+    if (typeof rhs === 'number') return 1;
+
+    if (typeof lhs === 'string') {
+        if (typeof rhs === 'string') {
+            return lhs < rhs ? -1 : lhs > rhs ? 1 : 0;
+        }
+        return -1;
+    }
+    if (typeof rhs === 'string') return 1;
+
+    if (Array.isArray(lhs)) {
+        if (Array.isArray(rhs)) return arrayCompare(lhs, rhs);
+        return -1;
+    }
+    if (Array.isArray(rhs)) return 1;
+
+    return objectCompare(lhs, rhs);
+}
+
+function arrayCompare(lhs: JSONValue[], rhs: JSONValue[]): -1 | 0 | 1 {
+    for (let i = 0; ; ++i) {
+        if (i < lhs.length) {
+            if (i < rhs.length) {
+                const r = valueCompare(lhs[i], rhs[i]);
+                if (r !== 0) return r;
+            } else {
+                return -1;
+            }
+        } else {
+            if (i < rhs.length) {
+                return 1;
+            } else {
+                return 0;
+            }
+        }
+    }
+}
+
+function valuesOf(obj: JsonMap): JSONValue[] {
+    return Object.keys(obj).reduce((a, k) => [...a, obj[k]], [] as JSONValue[]);
+}
+
+function objectCompare(lhs: JsonMap, rhs: JsonMap): -1 | 0 | 1 {
+    const r = arrayCompare(Object.keys(lhs), Object.keys(rhs));
+    if (r !== 0) return r;
+    return arrayCompare(valuesOf(lhs), valuesOf(rhs));
+}
+
 function forEachArgs(args: Context[], fn: (args: Value[]) => Value[]) {
     const combinations = expandCombination(
         args.map(arg => arg.values),
@@ -930,6 +994,15 @@ const functions = new Map<
         standardFunction(input => {
             if (typeof input !== 'number') return false;
             return isFinite(input) && !isNaN(input) && input != 0.0;
+        }),
+    ],
+    [
+        'sort',
+        standardFunction(input => {
+            if (!Array.isArray(input)) {
+                throw new Error(`cannot sort non-array value: ${input}`);
+            }
+            return input.sort(valueCompare);
         }),
     ],
 ]);

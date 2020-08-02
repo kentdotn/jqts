@@ -842,3 +842,9 @@ test('infinite, nan, isinfinite, isnan, isfinite, isnormal', () => {
         'number',
     ]);
 });
+
+test('sort, sort_by(path_expression)', () => {
+    expect(JQ.compile('sort').evaluate([8, 3, null, 6])).toStrictEqual([
+        [null, 3, 6, 8],
+    ]);
+});
