@@ -199,7 +199,9 @@ export class ObjectFieldEvaluator implements Evaluator<Context, JsonMap[]> {
     evaluate(ctx: Context) {
         const keys = this.key.evaluate(ctx).values.map(ensureObjectKey);
         const values = flatten(
-            ctx.values.map(v => this.value.evaluate(ctx.withTarget(v)).values)
+            ctx.values.map(
+                v => this.value.evaluate(new Context(v).withTarget(v)).values
+            )
         ).map(v => {
             try {
                 return ensureValue(v);
@@ -232,13 +234,20 @@ export class ObjectEvaluator implements Evaluator<Context> {
 
     evaluate(ctx: Context) {
         try {
-            const fields = this.fields.map(f => f.evaluate(ctx));
-
-            const xs = expandCombination(fields, {} as JsonMap, (prev, vs) => {
-                return vs.map(v => {
-                    return { ...prev, ...v };
-                });
-            });
+            const xs = flatten(
+                ctx.values.map(v => {
+                    const ctx0 = new Context(v);
+                    return expandCombination(
+                        this.fields.map(f => f.evaluate(ctx0)),
+                        {} as JsonMap,
+                        (prev, vs) => {
+                            return vs.map(v => {
+                                return { ...prev, ...v };
+                            });
+                        }
+                    );
+                })
+            );
 
             return new Context(...xs.map(value => ({ value })));
         } catch (error) {

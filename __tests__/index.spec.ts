@@ -224,6 +224,25 @@ test('Object Construction', () => {
     ).toStrictEqual([{ stedolan: ['JQ Primer', 'More JQ'] }]);
 });
 
+test('Object Construction (iterate as needed)', () => {
+    expect(
+        JQ.compile('.[] | { x: ., y: . + 1 }').evaluate([1, 2, 3])
+    ).toStrictEqual([
+        {
+            x: 1,
+            y: 2,
+        },
+        {
+            x: 2,
+            y: 3,
+        },
+        {
+            x: 3,
+            y: 4,
+        },
+    ]);
+});
+
 test.skip('Recursive Descent', () => {
     expect(JQ.compile('..|.a?').evaluate([[{ a: 1 }]])).toStrictEqual([1]);
 });
