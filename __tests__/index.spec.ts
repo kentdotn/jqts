@@ -829,3 +829,16 @@ test('type', () => {
         ['number', 'boolean', 'array', 'object', 'null', 'string'],
     ]);
 });
+
+test('infinite, nan, isinfinite, isnan, isfinite, isnormal', () => {
+    expect(
+        JQ.compile('.[] | (infinite * .) < 0').evaluate([-1, 1])
+    ).toStrictEqual([true, false]);
+});
+
+test('infinite, nan, isinfinite, isnan, isfinite, isnormal', () => {
+    expect(JQ.compile('infinite, nan | type').evaluate(null)).toStrictEqual([
+        'number',
+        'number',
+    ]);
+});

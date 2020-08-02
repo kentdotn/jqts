@@ -892,6 +892,46 @@ const functions = new Map<
             }
         }),
     ],
+    [
+        'infinite',
+        standardFunction(() => {
+            return Infinity;
+        }),
+    ],
+    [
+        'nan',
+        standardFunction(() => {
+            return NaN;
+        }),
+    ],
+    [
+        'isinfinite',
+        standardFunction(input => {
+            if (typeof input !== 'number') return false;
+            return !isFinite(input);
+        }),
+    ],
+    [
+        'isnan',
+        standardFunction(input => {
+            if (typeof input !== 'number') return false;
+            return isNaN(input);
+        }),
+    ],
+    [
+        'isfinite',
+        standardFunction(input => {
+            if (typeof input !== 'number') return false;
+            return isFinite(input);
+        }),
+    ],
+    [
+        'isnormal',
+        standardFunction(input => {
+            if (typeof input !== 'number') return false;
+            return isFinite(input) && !isNaN(input) && input != 0.0;
+        }),
+    ],
 ]);
 
 export class FunctionCallEvaluator implements Evaluator<Context> {
