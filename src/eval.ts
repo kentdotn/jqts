@@ -170,10 +170,21 @@ export class ArrayEvaluator implements Evaluator<Context> {
 
     evaluate(ctx: Context) {
         try {
-            const xs = this.elements.map(x => x.evaluate(ctx).values);
-            return new Context({
-                value: flatten(xs).map(ensureValue),
+            const xs = ctx.values.map(v => {
+                const ctx0 = new Context(v);
+                return flatten(
+                    this.elements
+                        .map(x => x.evaluate(ctx0))
+                        .filter(r => r.values.length > 0)
+                        .map(r => r.values)
+                );
             });
+
+            return new Context(
+                ...xs.map(x => ({
+                    value: x.map(ensureValue),
+                }))
+            );
         } catch (error) {
             return new Context({ error });
         }

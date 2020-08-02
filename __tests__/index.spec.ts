@@ -203,6 +203,13 @@ test('Array construction', () => {
     ]);
 });
 
+test('Array construction (Multiple Input)', () => {
+    expect(JQ.compile('.[] | [ . ]').evaluate([1, 2])).toStrictEqual([
+        [1],
+        [2],
+    ]);
+});
+
 test('Object Construction', () => {
     expect(
         JQ.compile('{user, title: .titles[]}').evaluate({
