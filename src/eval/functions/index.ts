@@ -36,6 +36,13 @@ import {
     isInfinite,
     sort,
     range,
+    minIndex,
+    maxIndex,
+    groupBy,
+    sortBy,
+    unique,
+    uniqueBy,
+    reverse,
 } from './predefined';
 
 function invokeFunction(
@@ -144,6 +151,39 @@ function selectFunction(
     };
 }
 
+function standardArrayFunction<T extends JSONValue>(
+    fn: (input: JSONValue[], ...args: JSONValue[]) => T
+) {
+    return standardFunction((input, ...args) => {
+        if (!Array.isArray(input)) {
+            throw new RuntimeError(
+                `unexpected non-array input: ${JSON.stringify(input)}`
+            );
+        }
+
+        return fn(input, ...args);
+    });
+}
+
+function arrayFunctionWithKeyEvaluation<T extends JSONValue>(
+    fn: (values: JSONValue[], keys: JSONValue[]) => T
+) {
+    return (ctx: Context, args: Evaluator<Context>[]) => {
+        const compareBy = args[0];
+        const values = ctx.values.map(input => {
+            const values = ensureArray(input);
+            const keys = values.map(value => {
+                return ensureValue(
+                    compareBy.evaluate(new Context({ value })).values[0]
+                );
+            });
+            const value = fn(values, keys);
+            return { value };
+        });
+        return new Context(...values);
+    };
+}
+
 export const functions = new Map<
     string,
     (ctx: Context, args: Evaluator<Context>[]) => Context
@@ -247,52 +287,24 @@ export const functions = new Map<
     ['isnan', standardFunction(input => isNumber(input) && isNaN(input))],
     ['isfinite', standardFunction(input => isNumber(input) && isFinite(input))],
     ['isnormal', standardFunction(isNormal)],
-    ['sort', standardFunction(sort)],
+    ['sort', standardArrayFunction(sort)],
+    ['sort_by', arrayFunctionWithKeyEvaluation(sortBy)],
+    ['group_by', arrayFunctionWithKeyEvaluation(groupBy)],
+    ['min', standardArrayFunction(input => input[minIndex(input)])],
     [
-        'sort_by',
-        (ctx, args) => {
-            const compareBy = args[0];
-            const values = ctx.values.map(input => {
-                const elements = ensureArray(input).map(value => {
-                    const key = ensureValue(
-                        compareBy.evaluate(new Context({ value })).values[0]
-                    );
-                    return { value, key };
-                });
-                const value = elements
-                    .sort((a, b) => valueCompare(a.key, b.key))
-                    .map(x => x.value);
-                return { value };
-            });
-            return new Context(...values);
-        },
+        'min_by',
+        arrayFunctionWithKeyEvaluation(
+            (values, keys) => values[minIndex(keys)]
+        ),
     ],
+    ['max', standardArrayFunction(input => input[maxIndex(input)])],
     [
-        'group_by',
-        (ctx, args) => {
-            const compareBy = args[0];
-            const values = ctx.values.map(input => {
-                const elements = ensureArray(input).map(value => {
-                    const key = ensureValue(
-                        compareBy.evaluate(new Context({ value })).values[0]
-                    );
-                    return { value, key };
-                });
-                const value = [
-                    ...elements
-                        .reduce(
-                            (groups, { key, value }) =>
-                                groups.set(key, [
-                                    ...(groups.get(key) ?? []),
-                                    value,
-                                ]),
-                            new Map<JSONValue, JSONValue[]>()
-                        )
-                        .values(),
-                ];
-                return { value };
-            });
-            return new Context(...values);
-        },
+        'max_by',
+        arrayFunctionWithKeyEvaluation(
+            (values, keys) => values[maxIndex(keys)]
+        ),
     ],
+    ['unique', standardArrayFunction(unique)],
+    ['unique_by', arrayFunctionWithKeyEvaluation(uniqueBy)],
+    ['reverse', standardArrayFunction(reverse)],
 ]);

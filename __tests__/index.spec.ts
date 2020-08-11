@@ -890,11 +890,24 @@ test('group_by(path_expression)', () => {
     ]);
 });
 
-test.skip('min, max, min_by(path_exp), max_by(path_exp)', () => {
+test('min, max, min_by(path_exp), max_by(path_exp)', () => {
     expect(JQ.compile('min').evaluate([5, 4, 2, 7])).toStrictEqual([2]);
 });
 
-test.skip('min, max, min_by(path_exp), max_by(path_exp)', () => {
+test('min, max, min_by(path_exp), max_by(path_exp)', () => {
+    expect(JQ.compile('max').evaluate([5, 4, 2, 7])).toStrictEqual([7]);
+});
+
+test('min, max, min_by(path_exp), max_by(path_exp)', () => {
+    expect(
+        JQ.compile('min_by(.foo)').evaluate([
+            { foo: 1, bar: 14 },
+            { foo: 2, bar: 3 },
+        ])
+    ).toStrictEqual([{ foo: 1, bar: 14 }]);
+});
+
+test('min, max, min_by(path_exp), max_by(path_exp)', () => {
     expect(
         JQ.compile('max_by(.foo)').evaluate([
             { foo: 1, bar: 14 },
@@ -903,13 +916,13 @@ test.skip('min, max, min_by(path_exp), max_by(path_exp)', () => {
     ).toStrictEqual([{ foo: 2, bar: 3 }]);
 });
 
-test.skip('unique, unique_by(path_exp)', () => {
+test('unique, unique_by(path_exp)', () => {
     expect(
         JQ.compile('unique').evaluate([1, 2, 5, 3, 5, 3, 1, 3])
     ).toStrictEqual([[1, 2, 3, 5]]);
 });
 
-test.skip('unique, unique_by(path_exp)', () => {
+test('unique, unique_by(path_exp)', () => {
     expect(
         JQ.compile('unique_by(.foo)').evaluate([
             { foo: 1, bar: 2 },
@@ -924,7 +937,7 @@ test.skip('unique, unique_by(path_exp)', () => {
     ]);
 });
 
-test.skip('unique, unique_by(path_exp)', () => {
+test('unique, unique_by(path_exp)', () => {
     expect(
         JQ.compile('unique_by(length)').evaluate([
             'chunky',
@@ -936,7 +949,7 @@ test.skip('unique, unique_by(path_exp)', () => {
     ).toStrictEqual([['bacon', 'chunky', 'asparagus']]);
 });
 
-test.skip('reverse', () => {
+test('reverse', () => {
     expect(JQ.compile('reverse').evaluate([1, 2, 3, 4])).toStrictEqual([
         [4, 3, 2, 1],
     ]);

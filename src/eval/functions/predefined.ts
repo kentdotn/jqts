@@ -261,9 +261,69 @@ export function isInfinite(input: JSONValue): boolean {
     return isNumber(input) && !isFinite(input);
 }
 
-export function sort(input: JSONValue): JSONValue {
-    if (!Array.isArray(input)) {
-        throw new Error(`cannot sort non-array value: ${input}`);
+export function sort(values: JSONValue[]): JSONValue[] {
+    return values.sort(valueCompare);
+}
+
+export function sortBy(values: JSONValue[], keys: JSONValue[]): JSONValue[] {
+    return keys
+        .map((key, index) => ({ key, index }))
+        .sort((a, b) => valueCompare(a.key, b.key))
+        .map(({ index }) => values[index]);
+}
+
+export function groupBy(values: JSONValue[], keys: JSONValue[]) {
+    return [
+        ...keys
+            .reduce(
+                (groups, key, i) =>
+                    groups.set(key, [...(groups.get(key) ?? []), values[i]]),
+                new Map<JSONValue, JSONValue[]>()
+            )
+            .entries(),
+    ]
+        .sort((a, b) => valueCompare(a[0], b[0]))
+        .map(x => x[1]);
+}
+
+export function minIndex(input: JSONValue[]): number {
+    if (input.length == 0) {
+        throw new Error(
+            `cannot get the minimum element from empty array value: ${input}`
+        );
     }
-    return input.sort(valueCompare);
+
+    return input.reduce<number>(
+        (minIndex, v, i) =>
+            valueCompare(input[minIndex], v) > 0 ? i : minIndex,
+        0
+    );
+}
+
+export function maxIndex(input: JSONValue[]): number {
+    if (input.length == 0) {
+        throw new Error(
+            `cannot get the minimum element from empty array value: ${input}`
+        );
+    }
+
+    return input.reduce<number>(
+        (minIndex, v, i) =>
+            valueCompare(input[minIndex], v) < 0 ? i : minIndex,
+        0
+    );
+}
+
+export function unique(input: JSONValue[]): JSONValue[] {
+    return [
+        ...input.reduce((acc, v) => acc.add(v), new Set<JSONValue>()).values(),
+    ].sort();
+}
+
+export function uniqueBy(values: JSONValue[], keys: JSONValue[]): JSONValue[] {
+    return groupBy(values, keys).map(xs => xs[0]);
+}
+
+export function reverse(input: JSONValue[]): JSONValue[] {
+    return input.reverse();
 }
