@@ -1087,3 +1087,21 @@ test('inside', () => {
         ).evaluate({ foo: 12, bar: [{ barp: 15 }] })
     ).toStrictEqual([false]);
 });
+
+test('startswith(str)', () => {
+    expect(
+        JQ.compile('[.[]|startswith("foo")]').evaluate([
+            'fo',
+            'foo',
+            'barfoo',
+            'foobar',
+            'barfoob',
+        ])
+    ).toStrictEqual([[false, true, false, true, false]]);
+});
+
+test('endswith(str)', () => {
+    expect(
+        JQ.compile('[.[]|endswith("foo")]').evaluate(['foobar', 'barfoo'])
+    ).toStrictEqual([[false, true]]);
+});

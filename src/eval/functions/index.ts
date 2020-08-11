@@ -47,6 +47,8 @@ import {
     indices,
     index,
     rindex,
+    startswith,
+    endswith,
 } from './predefined';
 
 function invokeFunction(
@@ -316,4 +318,6 @@ export const functions = new Map<
     ['index', standardFunction(index)],
     ['rindex', standardFunction(rindex)],
     ['inside', standardFunction((input, target) => contains(target, input))],
+    ['startswith', standardFunction(startswith)],
+    ['endswith', standardFunction(endswith)],
 ]);

@@ -481,3 +481,39 @@ export function index(input: JSONValue, target: JSONValue): number | null {
 export function rindex(input: JSONValue, target: JSONValue): number | null {
     return _indices(input, target, 1, true).shift() ?? null;
 }
+
+export function startswith(input: JSONValue, target: JSONValue): boolean {
+    if (!isString(input)) {
+        throw new RuntimeError(
+            `cannot apply startswith against non-string value ${JSON.stringify(
+                input
+            )}`
+        );
+    }
+    if (!isString(target)) {
+        throw new RuntimeError(
+            `cannot apply startswith with non-string value ${JSON.stringify(
+                target
+            )}`
+        );
+    }
+    return input.startsWith(target);
+}
+
+export function endswith(input: JSONValue, target: JSONValue): boolean {
+    if (!isString(input)) {
+        throw new RuntimeError(
+            `cannot apply startswith against non-string value ${JSON.stringify(
+                input
+            )}`
+        );
+    }
+    if (!isString(target)) {
+        throw new RuntimeError(
+            `cannot apply startswith with non-string value ${JSON.stringify(
+                target
+            )}`
+        );
+    }
+    return input.endsWith(target);
+}
