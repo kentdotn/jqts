@@ -49,6 +49,7 @@ import {
     rindex,
     startswith,
     endswith,
+    combinations,
 } from './predefined';
 
 function invokeFunction(
@@ -320,4 +321,14 @@ export const functions = new Map<
     ['inside', standardFunction((input, target) => contains(target, input))],
     ['startswith', standardFunction(startswith)],
     ['endswith', standardFunction(endswith)],
+    [
+        'combinations',
+        (ctx, args) =>
+            forEachInvocation(ctx, args, (input, args) => {
+                combinations;
+                const [nOrUndef] = args.map(ensureNumberValue);
+                const values = combinations(ensureArray(input), nOrUndef);
+                return values.map(value => ({ value }));
+            }),
+    ],
 ]);

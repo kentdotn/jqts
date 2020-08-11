@@ -1105,3 +1105,96 @@ test('endswith(str)', () => {
         JQ.compile('[.[]|endswith("foo")]').evaluate(['foobar', 'barfoo'])
     ).toStrictEqual([[false, true]]);
 });
+
+test('combinations, combinations(n)', () => {
+    expect(
+        JQ.compile('combinations').evaluate([
+            [1, 2],
+            [3, 4],
+        ])
+    ).toStrictEqual([
+        [1, 3],
+        [1, 4],
+        [2, 3],
+        [2, 4],
+    ]);
+});
+
+test('combinations, combinations(n)', () => {
+    expect(
+        JQ.compile('combinations').evaluate([
+            [1, 2],
+            [3, 4, 5],
+        ])
+    ).toStrictEqual([
+        [1, 3],
+        [1, 4],
+        [1, 5],
+        [2, 3],
+        [2, 4],
+        [2, 5],
+    ]);
+});
+
+test('combinations, combinations(n)', () => {
+    expect(
+        JQ.compile('combinations').evaluate([
+            [1, 2],
+            [3, 4],
+            [5, 6],
+        ])
+    ).toStrictEqual([
+        [1, 3, 5],
+        [1, 3, 6],
+        [1, 4, 5],
+        [1, 4, 6],
+        [2, 3, 5],
+        [2, 3, 6],
+        [2, 4, 5],
+        [2, 4, 6],
+    ]);
+});
+
+test('combinations, combinations(n)', () => {
+    expect(JQ.compile('combinations').evaluate([[1, 2], []])).toStrictEqual([]);
+});
+
+test('combinations, combinations(n)', () => {
+    expect(JQ.compile('combinations(2)').evaluate([0, 1])).toStrictEqual([
+        [0, 0],
+        [0, 1],
+        [1, 0],
+        [1, 1],
+    ]);
+});
+
+test('combinations, combinations(n)', () => {
+    expect(JQ.compile('combinations(2)').evaluate([0, 1, 2])).toStrictEqual([
+        [0, 0],
+        [0, 1],
+        [0, 2],
+        [1, 0],
+        [1, 1],
+        [1, 2],
+        [2, 0],
+        [2, 1],
+        [2, 2],
+    ]);
+});
+
+test('combinations, combinations(n)', () => {
+    expect(JQ.compile('combinations(3)').evaluate([0, 1])).toStrictEqual([
+        [0, 0, 0],
+        [0, 0, 1],
+        [0, 1, 0],
+        [0, 1, 1],
+        [1, 0, 0],
+        [1, 0, 1],
+        [1, 1, 0],
+        [1, 1, 1],
+    ]);
+});
+
+test('combinations, combinations(n)', () => {
+    expect(JQ.compile('combinations(0)').evaluate([0, 1])).toStrictEqual([]);
+});

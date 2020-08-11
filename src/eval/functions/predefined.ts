@@ -1,7 +1,7 @@
 import { JSONValue, isJsonMap, JsonMap } from '../../context';
 import { RuntimeError } from '../error';
 import { addOperator } from './operators';
-import { isFalsy, valueCompare } from '../utility';
+import { isFalsy, valueCompare, expandCombination } from '../utility';
 
 export function length(value: JSONValue) {
     if (isJsonMap(value)) {
@@ -516,4 +516,34 @@ export function endswith(input: JSONValue, target: JSONValue): boolean {
         );
     }
     return input.endsWith(target);
+}
+
+function _combinations(...input: JSONValue[][]): JSONValue[][] {
+    return expandCombination(input, [] as JSONValue[], (prev, xs) =>
+        xs.map(x => [...prev, x])
+    );
+}
+
+function isArrayOfArray(value: JSONValue[]): value is JSONValue[][] {
+    return value.every(v => isArray(v));
+}
+
+export function combinations(input: JSONValue[], n?: JSONValue): JSONValue[][] {
+    if (n === undefined) {
+        if (!isArrayOfArray(input)) {
+            throw new RuntimeError(
+                `cannot get combinations from array of non-arrays: ${JSON.stringify(
+                    input
+                )}`
+            );
+        }
+        return _combinations(...input);
+    } else {
+        if (!isNumber(n)) {
+            throw new RuntimeError(
+                `unexpected non-number: ${JSON.stringify(n)}`
+            );
+        }
+        return _combinations(...[...Array(n)].map(() => input));
+    }
 }
