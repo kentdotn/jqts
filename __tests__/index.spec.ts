@@ -872,7 +872,7 @@ test('sort, sort_by(path_expression)', () => {
     ]);
 });
 
-test.skip('group_by(path_expression)', () => {
+test('group_by(path_expression)', () => {
     expect(
         JQ.compile('group_by(.foo)').evaluate([
             { foo: 1, bar: 10 },

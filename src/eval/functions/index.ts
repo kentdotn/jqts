@@ -267,4 +267,32 @@ export const functions = new Map<
             return new Context(...values);
         },
     ],
+    [
+        'group_by',
+        (ctx, args) => {
+            const compareBy = args[0];
+            const values = ctx.values.map(input => {
+                const elements = ensureArray(input).map(value => {
+                    const key = ensureValue(
+                        compareBy.evaluate(new Context({ value })).values[0]
+                    );
+                    return { value, key };
+                });
+                const value = [
+                    ...elements
+                        .reduce(
+                            (groups, { key, value }) =>
+                                groups.set(key, [
+                                    ...(groups.get(key) ?? []),
+                                    value,
+                                ]),
+                            new Map<JSONValue, JSONValue[]>()
+                        )
+                        .values(),
+                ];
+                return { value };
+            });
+            return new Context(...values);
+        },
+    ],
 ]);
