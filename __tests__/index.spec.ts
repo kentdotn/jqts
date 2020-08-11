@@ -999,19 +999,19 @@ test('contains(element)', () => {
     ).toStrictEqual([false]);
 });
 
-test.skip('indices(s)', () => {
+test('indices(s)', () => {
     expect(
         JQ.compile('indices(", ")').evaluate('a,b, cd, efg, hijk')
     ).toStrictEqual([[3, 7, 12]]);
 });
 
-test.skip('indices(s)', () => {
+test('indices(s)', () => {
     expect(
         JQ.compile('indices(1)').evaluate([0, 1, 2, 1, 3, 1, 4])
     ).toStrictEqual([[1, 3, 5]]);
 });
 
-test.skip('indices(s)', () => {
+test('indices(s)', () => {
     expect(
         JQ.compile('indices([1,2])').evaluate([
             0,
@@ -1030,13 +1030,19 @@ test.skip('indices(s)', () => {
     ).toStrictEqual([[1, 8]]);
 });
 
-test.skip('index(s), rindex(s)', () => {
+test('indices(s)', () => {
+    expect(
+        JQ.compile('indices([1,3])').evaluate([1, 3, 1, 3, 1])
+    ).toStrictEqual([[0, 2]]);
+});
+
+test('index(s), rindex(s)', () => {
     expect(
         JQ.compile('index(", ")').evaluate('a,b, cd, efg, hijk')
     ).toStrictEqual([3]);
 });
 
-test.skip('index(s), rindex(s)', () => {
+test('index(s), rindex(s)', () => {
     expect(
         JQ.compile('rindex(", ")').evaluate('a,b, cd, efg, hijk')
     ).toStrictEqual([12]);

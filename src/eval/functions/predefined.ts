@@ -369,3 +369,115 @@ export function contains(input: JSONValue, target: JSONValue): boolean {
 
     return valueCompare(input, target) === 0;
 }
+
+function indicesFromString(
+    _input: string,
+    _target: string,
+    maxIndices = 0,
+    reverse = false
+): number[] {
+    const input = reverse ? _input.split('').reverse().join('') : _input;
+    const target = reverse ? _target.split('').reverse().join('') : _target;
+
+    const indices: number[] = [];
+    let start = 0;
+    while (
+        start < input.length &&
+        (maxIndices == 0 || indices.length < maxIndices)
+    ) {
+        const idx = input.indexOf(target, start);
+        if (idx < 0) break;
+        indices.push(idx);
+        start = idx + target.length;
+    }
+
+    return reverse
+        ? indices.reverse().map(i => input.length - i - target.length)
+        : indices;
+}
+
+function indicesFromArray(
+    _input: JSONValue[],
+    _target: JSONValue[],
+    maxIndices = 0,
+    reverse = false
+): number[] {
+    const input = reverse ? _input.reverse() : _input;
+    const target = reverse ? _target.reverse() : _target;
+
+    if (target.length == 0) return [];
+
+    const indices: number[] = [];
+    let start = 0;
+    while (
+        start < input.length &&
+        (maxIndices == 0 || indices.length < maxIndices)
+    ) {
+        const [head] = target;
+        const idx = input
+            .slice(start)
+            .findIndex(v => valueCompare(v, head) === 0);
+        if (idx < 0) break;
+
+        start += idx;
+
+        if (target.length > 1) {
+            const rest = input.slice(start, start + target.length);
+            if (!target.every((v, i) => valueCompare(v, rest[i]) === 0)) {
+                start += 1;
+                continue;
+            }
+        }
+
+        indices.push(start);
+        start += target.length;
+    }
+
+    return reverse
+        ? indices.reverse().map(i => input.length - i - target.length)
+        : indices;
+}
+
+function _indices(
+    input: JSONValue,
+    target: JSONValue,
+    maxIndices = 0,
+    reverse = false
+): number[] {
+    if (isString(input)) {
+        if (!isString(target)) {
+            throw new RuntimeError(
+                `a non-string value ${JSON.stringify(
+                    target
+                )} cannot be contained in a string`
+            );
+        }
+        return indicesFromString(input, target, maxIndices, reverse);
+    }
+
+    if (isArray(input)) {
+        return indicesFromArray(
+            input,
+            isArray(target) ? target : [target],
+            maxIndices,
+            reverse
+        );
+    }
+
+    throw new RuntimeError(
+        `cannot get indices against non-string/non-array value: ${JSON.stringify(
+            input
+        )}`
+    );
+}
+export function indices(input: JSONValue, target: JSONValue): number[] {
+    return _indices(input, target);
+}
+
+export function index(input: JSONValue, target: JSONValue): number | null {
+    return _indices(input, target, 1).shift() ?? null;
+}
+
+export function rindex(input: JSONValue, target: JSONValue): number | null {
+    return _indices(input, target, 1, true).shift() ?? null;
+}

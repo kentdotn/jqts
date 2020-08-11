@@ -44,6 +44,9 @@ import {
     uniqueBy,
     reverse,
     contains,
+    indices,
+    index,
+    rindex,
 } from './predefined';
 
 function invokeFunction(
@@ -309,4 +312,7 @@ export const functions = new Map<
     ['unique_by', arrayFunctionWithKeyEvaluation(uniqueBy)],
     ['reverse', standardArrayFunction(reverse)],
     ['contains', standardFunction(contains)],
+    ['indices', standardFunction(indices)],
+    ['index', standardFunction(index)],
+    ['rindex', standardFunction(rindex)],
 ]);
