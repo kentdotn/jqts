@@ -24,6 +24,12 @@ export function ensureNumberValue(value: Value): number {
     return value.value;
 }
 
+export function ensureArray(value: Value): JSONValue[] {
+    const values = ensureValue(value);
+    if (Array.isArray(values)) return values;
+    throw new RuntimeError(`unexpected non-array value: ${values}`);
+}
+
 export function ensureObjectKey(value: Value): string {
     if ('error' in value) {
         throw value.error;

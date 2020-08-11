@@ -855,3 +855,176 @@ test('sort, sort_by(path_expression)', () => {
         [null, 3, 6, 8],
     ]);
 });
+
+test('sort, sort_by(path_expression)', () => {
+    expect(
+        JQ.compile('sort_by(.foo)').evaluate([
+            { foo: 4, bar: 10 },
+            { foo: 3, bar: 100 },
+            { foo: 2, bar: 1 },
+        ])
+    ).toStrictEqual([
+        [
+            { foo: 2, bar: 1 },
+            { foo: 3, bar: 100 },
+            { foo: 4, bar: 10 },
+        ],
+    ]);
+});
+
+test.skip('group_by(path_expression)', () => {
+    expect(
+        JQ.compile('group_by(.foo)').evaluate([
+            { foo: 1, bar: 10 },
+            { foo: 3, bar: 100 },
+            { foo: 1, bar: 1 },
+        ])
+    ).toStrictEqual([
+        [
+            [
+                { foo: 1, bar: 10 },
+                { foo: 1, bar: 1 },
+            ],
+            [{ foo: 3, bar: 100 }],
+        ],
+    ]);
+});
+
+test.skip('min, max, min_by(path_exp), max_by(path_exp)', () => {
+    expect(JQ.compile('min').evaluate([5, 4, 2, 7])).toStrictEqual([2]);
+});
+
+test.skip('min, max, min_by(path_exp), max_by(path_exp)', () => {
+    expect(
+        JQ.compile('max_by(.foo)').evaluate([
+            { foo: 1, bar: 14 },
+            { foo: 2, bar: 3 },
+        ])
+    ).toStrictEqual([{ foo: 2, bar: 3 }]);
+});
+
+test.skip('unique, unique_by(path_exp)', () => {
+    expect(
+        JQ.compile('unique').evaluate([1, 2, 5, 3, 5, 3, 1, 3])
+    ).toStrictEqual([[1, 2, 3, 5]]);
+});
+
+test.skip('unique, unique_by(path_exp)', () => {
+    expect(
+        JQ.compile('unique_by(.foo)').evaluate([
+            { foo: 1, bar: 2 },
+            { foo: 1, bar: 3 },
+            { foo: 4, bar: 5 },
+        ])
+    ).toStrictEqual([
+        [
+            { foo: 1, bar: 2 },
+            { foo: 4, bar: 5 },
+        ],
+    ]);
+});
+
+test.skip('unique, unique_by(path_exp)', () => {
+    expect(
+        JQ.compile('unique_by(length)').evaluate([
+            'chunky',
+            'bacon',
+            'kitten',
+            'cicada',
+            'asparagus',
+        ])
+    ).toStrictEqual([['bacon', 'chunky', 'asparagus']]);
+});
+
+test.skip('reverse', () => {
+    expect(JQ.compile('reverse').evaluate([1, 2, 3, 4])).toStrictEqual([
+        [4, 3, 2, 1],
+    ]);
+});
+
+test.skip('contains(element)', () => {
+    expect(JQ.compile('contains("bar")').evaluate('foobar')).toStrictEqual([
+        true,
+    ]);
+});
+
+test.skip('contains(element)', () => {
+    expect(
+        JQ.compile('contains(["baz", "bar"])').evaluate([
+            'foobar',
+            'foobaz',
+            'blarp',
+        ])
+    ).toStrictEqual([true]);
+});
+
+test.skip('contains(element)', () => {
+    expect(
+        JQ.compile('contains(["bazzzzz", "bar"])').evaluate([
+            'foobar',
+            'foobaz',
+            'blarp',
+        ])
+    ).toStrictEqual([false]);
+});
+
+test.skip('contains(element)', () => {
+    expect(
+        JQ.compile('contains({foo: 12, bar: [{barp: 12}]})').evaluate({
+            foo: 12,
+            bar: [1, 2, { barp: 12, blip: 13 }],
+        })
+    ).toStrictEqual([true]);
+});
+
+test.skip('contains(element)', () => {
+    expect(
+        JQ.compile('contains({foo: 12, bar: [{barp: 15}]})').evaluate({
+            foo: 12,
+            bar: [1, 2, { barp: 12, blip: 13 }],
+        })
+    ).toStrictEqual([false]);
+});
+
+test.skip('indices(s)', () => {
+    expect(
+        JQ.compile('indices(", ")').evaluate('a,b, cd, efg, hijk')
+    ).toStrictEqual([[3, 7, 12]]);
+});
+
+test.skip('indices(s)', () => {
+    expect(
+        JQ.compile('indices(1)').evaluate([0, 1, 2, 1, 3, 1, 4])
+    ).toStrictEqual([[1, 3, 5]]);
+});
+
+test.skip('indices(s)', () => {
+    expect(
+        JQ.compile('indices([1,2])').evaluate([
+            0,
+            1,
+            2,
+            3,
+            1,
+            4,
+            2,
+            5,
+            1,
+            2,
+            6,
+            7,
+        ])
+    ).toStrictEqual([[1, 8]]);
+});
+
+test.skip('index(s), rindex(s)', () => {
+    expect(
+        JQ.compile('index(", ")').evaluate('a,b, cd, efg, hijk')
+    ).toStrictEqual([3]);
+});
+
+test.skip('index(s), rindex(s)', () => {
+    expect(
+        JQ.compile('rindex(", ")').evaluate('a,b, cd, efg, hijk')
+    ).toStrictEqual([12]);
+});

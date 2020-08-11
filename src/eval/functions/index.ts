@@ -7,9 +7,9 @@ import {
     IdentityEvaluator,
     SpreadEvaluator,
 } from '..';
-import { ensureValue, ensureNumberValue } from '../ensure';
+import { ensureValue, ensureNumberValue, ensureArray } from '../ensure';
 import { RuntimeError } from '../error';
-import { expandCombination, flatten, isFalsy } from '../utility';
+import { expandCombination, flatten, isFalsy, valueCompare } from '../utility';
 import {
     length,
     utf8bytelength,
@@ -248,4 +248,23 @@ export const functions = new Map<
     ['isfinite', standardFunction(input => isNumber(input) && isFinite(input))],
     ['isnormal', standardFunction(isNormal)],
     ['sort', standardFunction(sort)],
+    [
+        'sort_by',
+        (ctx, args) => {
+            const compareBy = args[0];
+            const values = ctx.values.map(input => {
+                const elements = ensureArray(input).map(value => {
+                    const key = ensureValue(
+                        compareBy.evaluate(new Context({ value })).values[0]
+                    );
+                    return { value, key };
+                });
+                const value = elements
+                    .sort((a, b) => valueCompare(a.key, b.key))
+                    .map(x => x.value);
+                return { value };
+            });
+            return new Context(...values);
+        },
+    ],
 ]);
