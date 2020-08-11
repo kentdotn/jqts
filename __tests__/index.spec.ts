@@ -955,13 +955,13 @@ test('reverse', () => {
     ]);
 });
 
-test.skip('contains(element)', () => {
+test('contains(element)', () => {
     expect(JQ.compile('contains("bar")').evaluate('foobar')).toStrictEqual([
         true,
     ]);
 });
 
-test.skip('contains(element)', () => {
+test('contains(element)', () => {
     expect(
         JQ.compile('contains(["baz", "bar"])').evaluate([
             'foobar',
@@ -971,7 +971,7 @@ test.skip('contains(element)', () => {
     ).toStrictEqual([true]);
 });
 
-test.skip('contains(element)', () => {
+test('contains(element)', () => {
     expect(
         JQ.compile('contains(["bazzzzz", "bar"])').evaluate([
             'foobar',
@@ -981,7 +981,7 @@ test.skip('contains(element)', () => {
     ).toStrictEqual([false]);
 });
 
-test.skip('contains(element)', () => {
+test('contains(element)', () => {
     expect(
         JQ.compile('contains({foo: 12, bar: [{barp: 12}]})').evaluate({
             foo: 12,
@@ -990,7 +990,7 @@ test.skip('contains(element)', () => {
     ).toStrictEqual([true]);
 });
 
-test.skip('contains(element)', () => {
+test('contains(element)', () => {
     expect(
         JQ.compile('contains({foo: 12, bar: [{barp: 15}]})').evaluate({
             foo: 12,

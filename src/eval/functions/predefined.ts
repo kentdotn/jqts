@@ -327,3 +327,45 @@ export function uniqueBy(values: JSONValue[], keys: JSONValue[]): JSONValue[] {
 export function reverse(input: JSONValue[]): JSONValue[] {
     return input.reverse();
 }
+
+export function contains(input: JSONValue, target: JSONValue): boolean {
+    if (isString(input)) {
+        if (!isString(target)) {
+            throw new RuntimeError(
+                `a non-string value ${JSON.stringify(
+                    target
+                )} cannot be contained in a string`
+            );
+        }
+
+        return input.indexOf(target) > 0;
+    }
+
+    if (isArray(input)) {
+        if (!isArray(target)) {
+            throw new RuntimeError(
+                `a non-array value ${JSON.stringify(
+                    target
+                )} cannot be contained in an array`
+            );
+        }
+
+        return target.every(x => input.some(y => contains(y, x)));
+    }
+
+    if (isObject(input)) {
+        if (!isObject(target)) {
+            throw new RuntimeError(
+                `a non-object value ${JSON.stringify(
+                    target
+                )} cannot be contained in an object`
+            );
+        }
+
+        return Object.entries(target).every(
+            ([key, value]) => key in input && contains(input[key], value)
+        );
+    }
+
+    return valueCompare(input, target) === 0;
+}
