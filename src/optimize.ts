@@ -1,7 +1,6 @@
 import { Statements, isExprStatement, ExprStatement } from './stmt';
 import {
     Evaluator,
-    RuntimeError,
     PipedEvaluator,
     ParallelEvaluator,
     BinaryOperatorEvaluator,
@@ -37,6 +36,7 @@ import {
     FunctionCallExpr,
 } from './expr';
 import { Context } from './context';
+import { RuntimeError } from './eval/error';
 
 function optimizePrimitiveExpr(expr: LiteralExpr | StringLiteralExpr) {
     return new PrimitiveEvaluator(expr.value);

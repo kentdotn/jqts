@@ -1,5 +1,5 @@
 import JQ from '../src';
-import { RuntimeError } from '../src/eval';
+import { RuntimeError } from '../src/eval/error';
 
 test('Identity', () => {
     const json = 'Hello, world!';
