@@ -1047,3 +1047,43 @@ test('index(s), rindex(s)', () => {
         JQ.compile('rindex(", ")').evaluate('a,b, cd, efg, hijk')
     ).toStrictEqual([12]);
 });
+
+test('inside', () => {
+    expect(JQ.compile('inside("foobar")').evaluate('bar')).toStrictEqual([
+        true,
+    ]);
+});
+
+test('inside', () => {
+    expect(
+        JQ.compile('inside(["foobar", "foobaz", "blarp"])').evaluate([
+            'baz',
+            'bar',
+        ])
+    ).toStrictEqual([true]);
+});
+
+test('inside', () => {
+    expect(
+        JQ.compile('inside(["foobar", "foobaz", "blarp"])').evaluate([
+            'bazzzzz',
+            'bar',
+        ])
+    ).toStrictEqual([false]);
+});
+
+test('inside', () => {
+    expect(
+        JQ.compile(
+            'inside({"foo": 12, "bar":[1,2,{"barp":12, "blip":13}]})'
+        ).evaluate({ foo: 12, bar: [{ barp: 12 }] })
+    ).toStrictEqual([true]);
+});
+
+test('inside', () => {
+    expect(
+        JQ.compile(
+            'inside({"foo": 12, "bar":[1,2,{"barp":12, "blip":13}]})'
+        ).evaluate({ foo: 12, bar: [{ barp: 15 }] })
+    ).toStrictEqual([false]);
+});

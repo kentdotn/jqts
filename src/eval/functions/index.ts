@@ -315,4 +315,5 @@ export const functions = new Map<
     ['indices', standardFunction(indices)],
     ['index', standardFunction(index)],
     ['rindex', standardFunction(rindex)],
+    ['inside', standardFunction((input, target) => contains(target, input))],
 ]);
