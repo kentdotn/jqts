@@ -34,6 +34,7 @@ function parseFunctionDefinition(scanner: Scanner): DefFuncStatement | null {
     return null;
 }
 
+/*
 function parseNullLiteral(scanner: Scanner): Expr | null {
     const result = scanner.scan('null');
     if (result) {
@@ -42,6 +43,7 @@ function parseNullLiteral(scanner: Scanner): Expr | null {
         return null;
     }
 }
+*/
 
 function parseNumberLiteral(scanner: Scanner): LiteralExpr | null {
     // the following regex comes from https://stackoverflow.com/a/13340826

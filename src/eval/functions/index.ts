@@ -9,7 +9,7 @@ import {
 } from '..';
 import { ensureValue, ensureNumberValue, ensureArray } from '../ensure';
 import { RuntimeError } from '../error';
-import { expandCombination, flatten, isFalsy, valueCompare } from '../utility';
+import { expandCombination, flatten, isFalsy } from '../utility';
 import {
     length,
     utf8bytelength,
