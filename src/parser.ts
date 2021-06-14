@@ -202,7 +202,7 @@ function parseObjectField(scanner: Scanner): Field | null {
         return new Field(key);
     }
 
-    const value = parseStandaloneExpression(scanner);
+    const value = parseFilteredExpression(scanner, false);
     if (!value) {
         throw new ParseError(`missing field value: ${scanner.target}`);
     }
@@ -554,8 +554,13 @@ function parseParallelExpression(scanner: Scanner): Expr | null {
     return root;
 }
 
-function parseFilteredExpression(scanner: Scanner): Expr | null {
-    const first = parseParallelExpression(scanner);
+function parseFilteredExpression(
+    scanner: Scanner,
+    allowParallel = true
+): Expr | null {
+    const first = allowParallel
+        ? parseParallelExpression(scanner)
+        : parseStandaloneExpression(scanner);
     if (!first) return null;
 
     const root = new FilteredExpr();
@@ -564,7 +569,9 @@ function parseFilteredExpression(scanner: Scanner): Expr | null {
     while (scanner.target.length > 0) {
         if (!scanner.scan('|')) break;
 
-        const next = parseParallelExpression(scanner);
+        const next = allowParallel
+            ? parseParallelExpression(scanner)
+            : parseStandaloneExpression(scanner);
         if (!next) {
             throw new ParseError(
                 `missing expr right side of '|': ${scanner.target}`

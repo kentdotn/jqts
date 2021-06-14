@@ -1198,3 +1198,22 @@ test('combinations, combinations(n)', () => {
 test('combinations, combinations(n)', () => {
     expect(JQ.compile('combinations(0)').evaluate([0, 1])).toStrictEqual([]);
 });
+
+test('object value specifier which containing filters', () => {
+    expect(
+        JQ.compile('{ x: .ys[] | {a} | {b: 1 - .a} }').evaluate({
+            ys: [{ a: 1 }, { a: 2 }],
+        })
+    ).toStrictEqual([
+        {
+            x: {
+                b: 0,
+            },
+        },
+        {
+            x: {
+                b: -1,
+            },
+        },
+    ]);
+});
