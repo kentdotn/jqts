@@ -161,11 +161,7 @@ test('Parenthesis', () => {
 
 test('Types and Values', () => {
     expect(JQ.compile('123, 4.56, 0.78, 1e2, 2e-3').evaluate(1)).toStrictEqual([
-        123,
-        4.56,
-        0.78,
-        100,
-        0.002,
+        123, 4.56, 0.78, 100, 0.002,
     ]);
 });
 
@@ -308,15 +304,13 @@ test('Multiplication, division, modulo', () => {
 
 test('Multiplication, division, modulo', () => {
     expect(JQ.compile('.[] | (1 / .)').evaluate([1, -1])).toStrictEqual([
-        1,
-        -1,
+        1, -1,
     ]);
 });
 
 test('Multiplication, division, modulo', () => {
     expect(JQ.compile('.[] | (1 / .)?').evaluate([1, 0, -1])).toStrictEqual([
-        1,
-        -1,
+        1, -1,
     ]);
 });
 
@@ -789,10 +783,7 @@ test('range(upto), range(from;upto) range(from;upto;by)', () => {
 
 test('range(upto), range(from;upto) range(from;upto;by)', () => {
     expect(JQ.compile('range(0;10;3)').evaluate(null)).toStrictEqual([
-        0,
-        3,
-        6,
-        9,
+        0, 3, 6, 9,
     ]);
 });
 
@@ -816,8 +807,7 @@ test('sqrt', () => {
 
 test('tonumber', () => {
     expect(JQ.compile('.[] | tonumber').evaluate([1, '1'])).toStrictEqual([
-        1,
-        1,
+        1, 1,
     ]);
 });
 
@@ -1014,18 +1004,7 @@ test('indices(s)', () => {
 test('indices(s)', () => {
     expect(
         JQ.compile('indices([1,2])').evaluate([
-            0,
-            1,
-            2,
-            3,
-            1,
-            4,
-            2,
-            5,
-            1,
-            2,
-            6,
-            7,
+            0, 1, 2, 3, 1, 4, 2, 5, 1, 2, 6, 7,
         ])
     ).toStrictEqual([[1, 8]]);
 });

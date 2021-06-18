@@ -271,9 +271,8 @@ export const functions = new Map<
         'range',
         (input, args) =>
             forEachInvocation(input, args, (_, args) => {
-                const [fromOrUpto, uptoOrUndef, byOrUndef] = args.map(
-                    ensureNumberValue
-                );
+                const [fromOrUpto, uptoOrUndef, byOrUndef] =
+                    args.map(ensureNumberValue);
                 const [from, upto] =
                     uptoOrUndef === undefined
                         ? [0, fromOrUpto]
