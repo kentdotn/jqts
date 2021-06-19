@@ -30,6 +30,7 @@ import {
     lessThanOrEqualToOperator,
     notEqualOperator,
     equalOperator,
+    alternativeOperator,
 } from './functions/operators';
 
 export interface Evaluator<Ctx, Ret = Ctx> {
@@ -356,6 +357,7 @@ const knownOperators: Record<
     '-': minusOperator,
     and: andOperator,
     or: orOperator,
+    '//': alternativeOperator,
     '>': greaterThanOperator,
     '>=': greaterThanOrEqualToOperator,
     '<': lessThanOperator,

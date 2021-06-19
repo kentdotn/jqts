@@ -1178,6 +1178,28 @@ test('combinations, combinations(n)', () => {
     expect(JQ.compile('combinations(0)').evaluate([0, 1])).toStrictEqual([]);
 });
 
+test('Alternative operator //', () => {
+    expect(JQ.compile('.foo // 42').evaluate({ foo: 19 })).toStrictEqual([19]);
+});
+
+test('Alternative operator //', () => {
+    expect(
+        JQ.compile('.foo // .bar').evaluate({ foo: 19, bar: 20 })
+    ).toStrictEqual([19]);
+});
+
+test('Alternative operator //', () => {
+    expect(
+        JQ.compile('.bar // .foo').evaluate({ foo: 19, bar: 20 })
+    ).toStrictEqual([20]);
+});
+
+test('Alternative operator //', () => {
+    expect(JQ.compile('.foo // .bar').evaluate({ baz: 21 })).toStrictEqual([
+        null,
+    ]);
+});
+
 test('object value specifier which containing filters', () => {
     expect(
         JQ.compile('{ x: .ys[] | {a} | {b: 1 - .a} }').evaluate({

@@ -1,5 +1,5 @@
 import { JSONValue, isJsonMap } from '../../context';
-import { mergeObject, isFalsy } from '../utility';
+import { mergeObject, isFalsy, isNullish } from '../utility';
 import { RuntimeError } from '../error';
 
 export function multiplyOperator(lhs: JSONValue, rhs: JSONValue): JSONValue {
@@ -89,6 +89,10 @@ export function andOperator(lhs: JSONValue, rhs: JSONValue): JSONValue {
 
 export function orOperator(lhs: JSONValue, rhs: JSONValue): JSONValue {
     return !isFalsy(lhs) || !isFalsy(rhs);
+}
+
+export function alternativeOperator(lhs: JSONValue, rhs: JSONValue): JSONValue {
+    return !isNullish(lhs) ? lhs : rhs;
 }
 
 export function greaterThanOperator(lhs: JSONValue, rhs: JSONValue): JSONValue {

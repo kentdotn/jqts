@@ -26,6 +26,10 @@ export function isFalsy(value: JSONValue) {
     return value === undefined || value === null || value === false;
 }
 
+export function isNullish(value: JSONValue) {
+    return value === undefined || value === null;
+}
+
 export function valueCompare(lhs: JSONValue, rhs: JSONValue): -1 | 0 | 1 {
     if (lhs === null) return rhs === null ? 0 : -1;
     if (rhs === null) return 1;

@@ -426,7 +426,7 @@ function parseMultiplicativeExpr(scanner: Scanner): Expr | null {
             lhs = subexpr;
         }
 
-        const result = scanner.scan(/^(\*|\/|%)/);
+        const result = scanner.scan(/^(\*|\/(?!\/)|%)/);
         if (!result) break;
 
         op = result[0];
@@ -527,8 +527,28 @@ function parseArithmeticExpression(scanner: Scanner): Expr | null {
     return parseLogicalOrExpression(scanner);
 }
 
+function parseAlternativeExpression(scanner: Scanner): Expr | null {
+    let lhs: Expr | null = null;
+
+    while (scanner.target.length > 0) {
+        const subexpr = parseArithmeticExpression(scanner);
+        if (!subexpr) break;
+
+        if (lhs) {
+            lhs = new BinaryOperatorExpr('//', lhs, subexpr);
+        } else {
+            lhs = subexpr;
+        }
+
+        const result = scanner.scan('//');
+        if (!result) break;
+    }
+
+    return lhs;
+}
+
 function parseStandaloneExpression(scanner: Scanner): Expr | null {
-    return parseArithmeticExpression(scanner);
+    return parseAlternativeExpression(scanner);
 }
 
 function parseParallelExpression(scanner: Scanner): Expr | null {
@@ -541,7 +561,7 @@ function parseParallelExpression(scanner: Scanner): Expr | null {
     while (scanner.target.length > 0) {
         if (!scanner.scan(',')) break;
 
-        const next = parseArithmeticExpression(scanner);
+        const next = parseStandaloneExpression(scanner);
         if (!next) {
             throw new ParseError(
                 `missing expr right side of ',': ${scanner.target}`
