@@ -23,7 +23,10 @@ export class StringLiteralExpr implements Expr {
 }
 
 export class FunctionCallExpr implements Expr {
-    constructor(public funcname: string, public args: Expr[]) {}
+    constructor(
+        public funcname: string,
+        public args: Expr[]
+    ) {}
 
     dump() {
         return { call: { [this.funcname]: this.args } };
@@ -71,7 +74,10 @@ export class ArrayExpr implements Expr {
 }
 
 export class Field {
-    constructor(public key: Expr, public value: Expr | null = null) {}
+    constructor(
+        public key: Expr,
+        public value: Expr | null = null
+    ) {}
 
     dump() {
         return {
@@ -100,7 +106,10 @@ export interface Indexer {
 }
 
 export class RangeIndexer implements Indexer {
-    constructor(public first: Expr | null, public last: Expr | null = null) {}
+    constructor(
+        public first: Expr | null,
+        public last: Expr | null = null
+    ) {}
 
     dump() {
         if (this.first) {
@@ -148,7 +157,11 @@ export class IndexedExpr implements Expr {
 }
 
 export class BinaryOperatorExpr implements Expr {
-    constructor(public op: string, public lhs: Expr, public rhs: Expr) {}
+    constructor(
+        public op: string,
+        public lhs: Expr,
+        public rhs: Expr
+    ) {}
 
     dump() {
         return {

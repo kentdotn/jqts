@@ -9,7 +9,10 @@ function testWithRegExp(target: string, pattern: RegExp): string[] {
 }
 
 export class Scanner {
-    constructor(public target: string, trim = true) {
+    constructor(
+        public target: string,
+        trim = true
+    ) {
         if (trim) {
             this.trimWhitespaces();
         }

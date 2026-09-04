@@ -14,7 +14,7 @@ import {
     ensureSlicable,
     ensureArrayIndexable,
 } from './ensure';
-import { RuntimeError } from './error';
+import { RuntimeError, UnknownError } from './error';
 import { flatten, expandCombination } from './utility';
 import {
     multiplyOperator,
@@ -95,7 +95,13 @@ export class ArrayEvaluator implements Evaluator<Context> {
                 }))
             );
         } catch (error) {
-            return new Context({ error });
+            if (error instanceof Error) {
+                return new Context({ error });
+            } else {
+                return new Context({
+                    error: new UnknownError(error),
+                });
+            }
         }
     }
 
@@ -167,7 +173,13 @@ export class ObjectEvaluator implements Evaluator<Context> {
 
             return new Context(...xs.map(value => ({ value })));
         } catch (error) {
-            return new Context({ error });
+            if (error instanceof Error) {
+                return new Context({ error });
+            } else {
+                return new Context({
+                    error: new UnknownError(error),
+                });
+            }
         }
     }
 
@@ -218,7 +230,13 @@ export class KeyEvaluator implements Evaluator<ContextWithTarget, Context> {
                 );
             return new Context(...indexedValues.map(value => ({ value })));
         } catch (error) {
-            return new Context({ error });
+            if (error instanceof Error) {
+                return new Context({ error });
+            } else {
+                return new Context({
+                    error: new UnknownError(error),
+                });
+            }
         }
     }
 
@@ -315,7 +333,13 @@ export class IndexedEvaluator implements Evaluator<Context> {
 
             return new Context(...flatten(results.map(c => c.values)));
         } catch (error) {
-            return new Context({ error });
+            if (error instanceof Error) {
+                return new Context({ error });
+            } else {
+                return new Context({
+                    error: new UnknownError(error),
+                });
+            }
         }
     }
 
@@ -328,7 +352,10 @@ export class IndexedEvaluator implements Evaluator<Context> {
 }
 
 export class FunctionCallEvaluator implements Evaluator<Context> {
-    constructor(private funcname: string, private args: Evaluator<Context>[]) {}
+    constructor(
+        private funcname: string,
+        private args: Evaluator<Context>[]
+    ) {}
 
     evaluate(ctx: Context): Context {
         const func = functions.get(this.funcname);

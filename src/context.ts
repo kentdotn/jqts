@@ -1,10 +1,5 @@
 export type JSONValue =
-    | number
-    | boolean
-    | string
-    | null
-    | Array<JSONValue>
-    | JsonMap;
+    number | boolean | string | null | Array<JSONValue> | JsonMap;
 export type JsonMap = { [key: string]: JSONValue };
 
 export function isJsonMap(x: JSONValue): x is Record<string, JSONValue> {
@@ -43,7 +38,10 @@ export class Context {
 }
 
 export class ContextWithTarget extends Context {
-    constructor(public target: Value, ...values: Value[]) {
+    constructor(
+        public target: Value,
+        ...values: Value[]
+    ) {
         super(...values);
     }
 }

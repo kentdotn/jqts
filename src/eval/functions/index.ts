@@ -8,7 +8,7 @@ import {
     SpreadEvaluator,
 } from '..';
 import { ensureValue, ensureNumberValue, ensureArray } from '../ensure';
-import { RuntimeError } from '../error';
+import { RuntimeError, UnknownError } from '../error';
 import { expandCombination, flatten, isFalsy } from '../utility';
 import {
     length,
@@ -62,7 +62,11 @@ function invokeFunction(
         if (value === undefined) return undefined;
         return { value };
     } catch (error) {
-        return { error };
+        if (error instanceof Error) {
+            return { error };
+        } else {
+            return { error: new UnknownError(error) };
+        }
     }
 }
 
@@ -324,7 +328,6 @@ export const functions = new Map<
         'combinations',
         (ctx, args) =>
             forEachInvocation(ctx, args, (input, args) => {
-                combinations;
                 const [nOrUndef] = args.map(ensureNumberValue);
                 const values = combinations(ensureArray(input), nOrUndef);
                 return values.map(value => ({ value }));
